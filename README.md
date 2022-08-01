@@ -62,9 +62,9 @@ Frameworks used:
 # DATASETS
 The time series are included in this github in ./data/NAB/. Official link is: https://github.com/numenta/NAB/tree/master/data
 
-I tested my algorithms on NAB time series files. 58 are present,  I use 51 are valid for my large-scale experiments. I tagged 7 files as invalid:
-- Files containing too early anomalies. So, it makes it impossible to calibrate the algorithms on anomaly-free signals
-- Files containing NaN values
+I tested my algorithms on NAB time series files. 58 files are present but 51 are valid for large-scale experiments. 7 files are invalid for one of those two reasons:
+- The timeseries contains too early anomalies. So, we cannot easily calibrate the algorithms on anomaly-free signals.
+- The timeseries contains NaN values.
 
 Notice: A few files are fully anomaly-free (e.g., realAWSCloudwatch/ec2_cpu_utilization_c6585a.csv). The F1-score formula would fail due to arithmetic reason (division per zero) but we expect the detector produces no False Positive. I compute the accuracy on them and tag it as "F1 score" in the remaining.
 
