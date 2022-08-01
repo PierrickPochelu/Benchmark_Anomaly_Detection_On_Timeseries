@@ -1,3 +1,7 @@
+This repo aims to compare different recent anomaly detection methods.
+
+Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on new data samples where we are looking for anomalies. There are two main approaches: real-time anomaly detection and offline anomaly detection. In this project, I focus on univariate anomaly detection with unsupervised learning.
+
 # METHODS
 
 **Offline time series anomaly detection** takes a fixed sequence of input data samples as input called a frame, and returns if there is an anomaly in the frame. They are convenient methods to detect anomalies in stored files with maximum reliability.
