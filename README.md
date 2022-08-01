@@ -139,7 +139,7 @@ ROCKET  stats: {'tn': 2652, 'fp': 244, 'fn': 379, 'tp': 26, 'f1': 0.077}
 DATAAUG  stats: {'tn': 2886, 'fp': 10, 'fn': 314, 'tp': 91, 'f1': 0.3597}
 ```
 
-AE is more accurate but at the cost of significant training time. DATAAUG produces hardly small improvement and require a lot of tuning: (choice of noise kinds, probability of the noise, amplitude of the noises...). Indeed, no feature extractor (identity) is a robust, simple and fast strategy.
+** Conclusion: AE is more accurate but at the cost of significant training time. DATAAUG produces hardly small improvement and require a lot of tuning: (choice of noise kinds, probability of the noise, amplitude of the noises...). Indeed, no feature extractor (identity) is a robust, simple and fast strategy.**
 
 More investigations should sweep other technics available. Pyts framework propose easily testable recent features extractors.
 
@@ -219,7 +219,7 @@ Legend:
 - red: False negative error
 - orange: False positive error
 
-The margin for improvement is obvious. On the majority of time series it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).
+**The margin for improvement is obvious. On the majority of time series it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).**
 
 # ONLINE STRATEGY - EXPERIMENTAL RESULTS
 Let's evaluate 4 real-time anomaly detection strategies
@@ -243,5 +243,5 @@ ARTIME  stats: {'tn': 3010, 'fp': 13, 'fn': 403, 'tp': 2, 'f1': 0.0095}
 OSE  stats: {'tn': 2943, 'fp': 80, 'fn': 378, 'tp': 27, 'f1': 0.1055}
 ```
 
-The real-time strategy is less accurate than offline ones. However, they do not require to repeat the training when new data samples are incoming.
-ARTime strategy fails while the author published amazing results. I am investigating further.
+**The real-time strategy is less accurate than offline ones. However, they do not require to repeat the training when new data samples are incoming.
+ARTime strategy fails while the author published amazing results. I am investigating further.**
