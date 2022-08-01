@@ -39,7 +39,7 @@ To compare multiple workflows at scale on many time series I design this workflo
 
 Methods used:
 - Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
-- Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), CAD-KNN [^3] ("CADKNN"), OSE, Relative Entropy.
+- Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), Conformal Anomaly Detector K-NN [^3] ("CADKNN"), x ("OSE"), Relative Entropy ("RE").
 - Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
 
 
