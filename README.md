@@ -1,15 +1,16 @@
 # INTRODUCTION
 
-Typical anomaly detection algorithms are calibrated on . The field of anomaly detection is splitted into two main subject: realtime anomaly detection and offline anomaly detection.
+Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on new data samples where we are looking for anomalies. There are two main approaches: real-time anomaly detection and offline anomaly detection. In this project, I focus on univariate anomaly detection with unsupervised learning.
 
 # METHODS
 
-**Offline timeseries anomaly detection** consists in producing time frames. They are convenients methods to detect anomalies on the disk with maximum of reliability.
-The usual workflow runs those following steps:
-
-First, it splits the signal into smaller frames. For example, the time series [5,6,2,7,8,9] with 3 length frames, would produce those 4 frames: [5,6,2], [6,2,7], [2,7,8], [7,8,9].
-Timeframes are shuffled during the training phase.
-During the inference phase, a fixed-length of values is given to the detector.
+**Offline timeseries anomaly detection** takes a fixed sequence of input data samples as input called a frame, and returns if there is an anomaly in the frame. They are convenients methods to detect anomalies in stored files with a maximum of reliability.
+The usual workflow runs those following steps (you can follow them on the lower figure):
+1. The input signal is splitted, the first samples are training and the following the testing. For each timeseries here, I use a  15%/85% ratio of training/testing data samples.
+3. The signal is standardized. Like it is commonly done, we compute mean &mu; and std &sigma; on the training (anomaly-free) signal. Then we standardize x_train=(x_train-&mu;)/(&sigma;) and x_test=(x_test-&mu;)/(&sigma;)
+4. The  input signal is splitted into smaller frames. For example, the time series [5,6,2,7,8,9] with 3 length frames, would produce those 4 frames: [5,6,2], [6,2,7], [2,7,8], [7,8,9]. During this step, we may apply data augmentation or features extration to improve the detector ability to extract useful information.
+5. The detector is build and trained on the X_train split.
+6. During the inference phase, the frame of values is given to the detector.
 
 The offline approach are generally used as following like any unsupervised algorithm:
 ```python
@@ -37,11 +38,16 @@ To compare multiple workflows at scale on a large number of timeseries I design 
 #![Big picture of the workflow](workflow.png)
 
 Methods used:
-- Train/Test split: I use 15% of training and the remaining as testing.
-- Norm: Like it is commonly done, we compute mean &mu; and std &sigma; on the training (anomaly-free) signal. Then we standardize x_train=(x_train-&mu;)/(&sigma;) and x_test=(x_test-&mu;)/(&sigma;)
-- Features extractor may include: data augmentation ("DATAAUG"), ROCKET ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
-- Realtime detectors: ARTime, CAD-KNN, OSE, Relative Entropy
-- Offline detectors: Autocoender with loss reconstruction ("AE"),
+- Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [[1]](#1) ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
+- Realtime detectors:  Adaptive Resonance [[2]](#2) ("ARTIME"), CAD-KNN [[3]](#3) ("CADKNN"), OSE, Relative Entropy.
+- Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [[4]](#4) ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
+
+References:
+[1]
+[2] Unsupervised real-time anomaly detection for streaming data
+[3] Conformalized density- and distance-based anomaly detection 
+<a id="4">[4]</a>
+
 
 Notice: autoencoders are used for two different ways and require different hyperparameters. For features extraction we use 5 conv. layers, and the detector 9 conv. layers.
 
