@@ -35,14 +35,14 @@ for v in gen_X_test(): #generator producing 1-per-1 test value
 
 To compare multiple workflows at scale on many time series I design this workflow. It allows to loop easily or distributed the computing of the experiments. Each step needs to be called using their id-name and may require specific hyperparameters.
 
-#![Big picture of the workflow](workflow.png)
+![Big picture of the workflow](workflow.png)
 
 Methods used:
 - Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
-- Realtime detectors:  Adaptive Resonance [[2]](#2) ("ARTIME"), CAD-KNN [^3] ("CADKNN"), OSE, Relative Entropy.
+- Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), CAD-KNN [^3] ("CADKNN"), OSE, Relative Entropy.
 - Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
 
-References:
+
 [^1]: "ROCKET: Exceptionally fast and accurate time series classification using random convolutional kernels", A. Dempster,  Data Mining and Knowledge Discovery 2020,  https://doi.org/10.1007/s10618-020-00701-z
 [^2]: "Unsupervised real-time anomaly detection for streaming data", S. Ahmada et al., Neurocomputing 2017, https://doi.org/10.1016/j.neucom.2017.04.070 
 [^3]: "Conformal k-NN Anomaly Detector for Univariate Data Streams", V. Ishimtsev et al., PMLR 2017, http://proceedings.mlr.press/v60/ishimtsev17a/ishimtsev17a.pdf
@@ -60,13 +60,15 @@ Frameworks used:
 
 
 # DATASETS
+The time series are included in this github in ./data/NAB/. Official link is: https://github.com/numenta/NAB/tree/master/data
+
 I tested my algorithms on NAB time series files. 58 are present,  I use 51 are valid for my large-scale experiments. I tagged 7 files as invalid:
 - Files containing too early anomalies. So, it makes it impossible to calibrate the algorithms on anomaly-free signals
 - Files containing NaN values
 
 Notice: A few files are fully anomaly-free (e.g., realAWSCloudwatch/ec2_cpu_utilization_c6585a.csv). The F1-score formula would fail due to arithmetic reason (division per zero) but we expect the detector produces no False Positive. I compute the accuracy on them and tag it as "F1 score" in the remaining.
 
-The tested algorithms can be evaluated beyond those 51 files. Further possible investigations would include multi-variate time series, multi-modal time series, time series clustering, ...
+The tested algorithms can be evaluated beyond those 51 files. Further possible investigations would include more time series: multi-variate time series, multi-modal time series, time series clustering, ...
 
 
 
@@ -207,7 +209,7 @@ for dataset_name, dataset in datasets.items():
 mosaic(paths,"mosaic.png")
 ```
 
-#![Large-scale anomaly detection](mosaic.png)
+![Large-scale anomaly detection](mosaic.png)
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
 Legend:
