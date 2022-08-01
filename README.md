@@ -1,18 +1,14 @@
-# INTRODUCTION
-
-Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on new data samples where we are looking for anomalies. There are two main approaches: real-time anomaly detection and offline anomaly detection. In this project, I focus on univariate anomaly detection with unsupervised learning.
-
 # METHODS
 
-**Offline timeseries anomaly detection** takes a fixed sequence of input data samples as input called a frame, and returns if there is an anomaly in the frame. They are convenients methods to detect anomalies in stored files with a maximum of reliability.
-The usual workflow runs those following steps (you can follow them on the lower figure):
-1. The input signal is splitted, the first samples are training and the following the testing. For each timeseries here, I use a  15%/85% ratio of training/testing data samples.
-3. The signal is standardized. Like it is commonly done, we compute mean &mu; and std &sigma; on the training (anomaly-free) signal. Then we standardize x_train=(x_train-&mu;)/(&sigma;) and x_test=(x_test-&mu;)/(&sigma;)
-4. The  input signal is splitted into smaller frames. For example, the time series [5,6,2,7,8,9] with 3 length frames, would produce those 4 frames: [5,6,2], [6,2,7], [2,7,8], [7,8,9]. During this step, we may apply data augmentation or features extration to improve the detector ability to extract useful information.
-5. The detector is build and trained on the X_train split.
-6. During the inference phase, the frame of values is given to the detector.
+**Offline time series anomaly detection** takes a fixed sequence of input data samples as input called a frame, and returns if there is an anomaly in the frame. They are convenient methods to detect anomalies in stored files with maximum reliability.
+The usual workflow runs the following steps (you can follow them in the lower figure):
+1. The input signal is **split between training/testing**. The first samples serve to train/calibrate the detector, and the following serves to test its ability to ring anomalies when needed. For each time series here, I use a  15%/85% ratio of training/testing data samples.
+3. The signal is **standardized**. Like it is commonly done, we compute mean &mu; and std &sigma; on the training (anomaly-free) signal. Then we standardize x_train=(x_train-&mu;)/(&sigma;) and x_test=(x_test-&mu;)/(&sigma;)
+4. The input signal is **split into frames**. For example, the time series [5,6,2,7,8,9] with 3 length frames, would produce those 4 frames: [5,6,2], [6,2,7], [2,7,8], [7,8,9]. During this step, we may apply data augmentation or features extraction to improve the detector's ability to extract useful information and ignore the noise.
+5. The detector is **trained** on the training split.
+6. During the **inference phase**, the frame of values is given to the detector.
 
-The offline approach are generally used as following like any unsupervised algorithm:
+The Python code below shows a common approach to train and predicting with a detector (5th and 6th steps above).
 ```python
 hyperparameters={"n_estimator":128}
 from sklearn.ensemble import IsolationForest
@@ -21,11 +17,11 @@ model.fit(X_train_frames) # we can iterate on fit to improve the model
 anomaly_detection=model.predict(X_test_frames)
 ```
 
-**Realtime timeseries anomaly detections** consists in predicting on incoming one-by-one values. They are especially usefull to detect early an error. However, they seem less accurate than offline methods.
+**Realtime time series anomaly detections** consist in predicting incoming one-by-one values. They are especially useful to detect early an error. However, they seem less accurate than offline methods.
 ```python
 hyperparameters={"n_estimator":128}
 from sklearn.ensemble import IsolationForest
-model=IsolationForest(X_train,hyperparameters) # don't need to iterate on the training phase. We passe
+model=IsolationForest(X_train, hyperparameters) # don't need to iterate on the training phase. We passe
 anomaly_detection=[]
 for v in gen_X_test(): #generator producing 1-per-1 test value
 	a=model.predict(v)
@@ -33,40 +29,40 @@ for v in gen_X_test(): #generator producing 1-per-1 test value
 ```
 
 
-To compare multiple workflows at scale on a large number of timeseries I design this workflow. It allows to loop easily or distributed the computing of the experiments. Each step needs to be called using their id-name and may require specific hyperparameters.
+To compare multiple workflows at scale on many time series I design this workflow. It allows to loop easily or distributed the computing of the experiments. Each step needs to be called using their id-name and may require specific hyperparameters.
 
 #![Big picture of the workflow](workflow.png)
 
 Methods used:
-- Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [[1]](#1) ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
-- Realtime detectors:  Adaptive Resonance [[2]](#2) ("ARTIME"), CAD-KNN [[3]](#3) ("CADKNN"), OSE, Relative Entropy.
-- Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [[4]](#4) ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
+- Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
+- Realtime detectors:  Adaptive Resonance [[2]](#2) ("ARTIME"), CAD-KNN [^3] ("CADKNN"), OSE, Relative Entropy.
+- Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
 
 References:
-[1]
-[2] Unsupervised real-time anomaly detection for streaming data
-[3] Conformalized density- and distance-based anomaly detection 
-<a id="4">[4]</a>
+[^1]: "ROCKET: Exceptionally fast and accurate time series classification using random convolutional kernels", A. Dempster,  Data Mining and Knowledge Discovery 2020,  https://doi.org/10.1007/s10618-020-00701-z
+[^2]: "Unsupervised real-time anomaly detection for streaming data", S. Ahmada et al., Neurocomputing 2017, https://doi.org/10.1016/j.neucom.2017.04.070 
+[^3]: "Conformal k-NN Anomaly Detector for Univariate Data Streams", V. Ishimtsev et al., PMLR 2017, http://proceedings.mlr.press/v60/ishimtsev17a/ishimtsev17a.pdf
+[^4]: "Isolation forest", ICDM 2008, F. T. Liu, https://doi.org/10.1109/ICDM.2008.17
 
 
-Notice: autoencoders are used for two different ways and require different hyperparameters. For features extraction we use 5 conv. layers, and the detector 9 conv. layers.
+Notice: autoencoders are used in two different ways and require different hyperparameters. For features extraction, we use 5 conv. layers, and the detector 9 conv. layers.
 
 Frameworks used:
-- tsaug [relevant doc page here](https://tsaug.readthedocs.io/en/stable/notebook/Examples%20of%20augmenters.html):  data augmentation for timeseries. It includes diverse kind of noises: speed shift, gaussian multiplicative noise on each value, ....
-- pyts [relevant doc page here](https://pyts.readthedocs.io/en/stable/modules/transformation.html): data augmentation for timeseries. It includes recent methods such as ROCKET.
+- tsaug [relevant doc page here](https://tsaug.readthedocs.io/en/stable/notebook/Examples%20of%20augmenters.html):  data augmentation for time series. It includes diverse kinds of noise: speed shift, gaussian multiplicative noise on each value,...
+- pyts [relevant doc page here](https://pyts.readthedocs.io/en/stable/modules/transformation.html): data augmentation for time series. It includes recent methods such as ROCKET.
 - scikit-learn [relevant doc page here](https://scikit-learn.org/stable/modules/outlier_detection.html): (non-deep) Machine Learning offline anomaly detectors: One-class SVM, Isolation Forest, Elliptic Envelope...
 - numenta [github here](https://github.com/numenta/NAB): Realtime anomaly detection. It implements recent methods such as ARTime.
-- tensorflow2.9 [relevant doc page here](https://keras.io/examples/timeseries/timeseries_anomaly_detection/): Autoencoder for detect anomaly based on loss reconstruction, or Autoencoder for extract features.
+- tensorflow2.9 [relevant doc page here](https://keras.io/examples/timeseries/timeseries_anomaly_detection/): Autoencoder for detecting anomaly based on loss reconstruction, or Autoencoder for extract features.
 
 
 # DATASETS
-I tested my algorithms on NAB timeserie files <link>. 58 are present,  I use 51 are valid for my large-scale experiments. I tagged 7 files invalid:
-- Files containing too early anormalies. So, it make it impossible to calibrate the algorithms on anomaly-free signals
+I tested my algorithms on NAB time series files. 58 are present,  I use 51 are valid for my large-scale experiments. I tagged 7 files as invalid:
+- Files containing too early anomalies. So, it makes it impossible to calibrate the algorithms on anomaly-free signals
 - Files containing NaN values
 
-Notice: A few files are fully anomaly-free (e.g., realAWSCloudwatch/ec2_cpu_utilization_c6585a.csv). The F1-score formula would failed due to arithmetic reason (division per zero) but we expect the detector produces no False Positive. I compute the accuracy on them and tag it as "F1 score" in the remaining.
+Notice: A few files are fully anomaly-free (e.g., realAWSCloudwatch/ec2_cpu_utilization_c6585a.csv). The F1-score formula would fail due to arithmetic reason (division per zero) but we expect the detector produces no False Positive. I compute the accuracy on them and tag it as "F1 score" in the remaining.
 
-The tested algorithms can be evaluated beyond those 51 files. Further possible investigations would include multi-variate time series, multi-modal time series, timeseries clustering with anomaly, ...
+The tested algorithms can be evaluated beyond those 51 files. Further possible investigations would include multi-variate time series, multi-modal time series, time series clustering, ...
 
 
 
@@ -74,7 +70,7 @@ The tested algorithms can be evaluated beyond those 51 files. Further possible i
 
 # OFFLINE STRATEGY - EXPERIMENTAL RESULTS
 
-Let's compare a simple strategy on all datasets. It consists to used the normed signal frame-per-frame to IsolationForest. The length of frames is 128 values and 15% of signals is used as unsupervised training ("unsupervised" but we know there is no anomaly in the training split).
+Let's compare a simple strategy on all datasets. It consists to used the normed signal frame-per-frame to IsolationForest. The length of frames is 128 values, and 15% of the time series are used as unsupervised training ("unsupervised" but we know there is no anomaly in the training split).
 
 ```python
 import os
@@ -103,7 +99,7 @@ It produces:
 ```
 realKnownCause/rogue_agent_key_hold.csv  stats: {'tn': 422, 'fp': 861, 'fn': 0, 'tp': 190, 'f1': 0.3062}
 realKnownCause/ec2_request_latency_system_failure.csv  stats: {'tn': 1578, 'fp': 1377, 'fn': 130, 'tp': 216, 'f1': 0.2228}
-Exception with dataset realKnownCause/machine_temperature_system_failure.csv type:<class 'ValueError'> msg:The begginning of the timeseries should be anomaly-free
+Exception with dataset realKnownCause/machine_temperature_system_failure.csv type:<class 'ValueError'> msg:The beginning of the time series should be anomaly-free
 realKnownCause/machine_temperature_system_failure.csv  stats: {'tn': 1578, 'fp': 1377, 'fn': 130, 'tp': 216, 'f1': 0.2228}
 realKnownCause/cpu_utilization_asg_misconfiguration.csv  stats: {'tn': 12347, 'fp': 1370, 'fn': 408, 'tp': 1091, 'f1': 0.551}
 <pre><b> ... ~50 lines are masked for visibility purpose </b></pre>
@@ -170,7 +166,7 @@ IFOREST  stats: {'tn': 2834, 'fp': 62, 'fn': 290, 'tp': 115, 'f1': 0.3952}
 AE as features extractor and AE as detectors means two autoencoders are cascading. This cascade is way better than 1 single AE+IsolationForest (f1: 0.4062) but it requires two AE and they are significantly slower than non-deep ML algorithms such as IsolationForest.
 
 
-## LARGE SCALE INSIGHT
+## LARGE-SCALE INSIGHT
 I take the simple and fast strategy consisting in applying Isolation Forest on a standardized signal.
 ```python
 import os
@@ -208,7 +204,7 @@ mosaic(paths,"mosaic.png")
 ```
 
 #![Large-scale anomaly detection](mosaic.png)
-clic on it for better view: timeseries name, F1-score, and detection/groundtruth.
+Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
 Legend:
 - grey: training split
@@ -217,10 +213,10 @@ Legend:
 - red: False negative error
 - orange: False positive error
 
-The margin for improvement is obvious. On the majority of timeseries it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).
+The margin for improvement is obvious. On the majority of time series it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).
 
 # ONLINE STRATEGY - EXPERIMENTAL RESULTS
-Let's evaluate 4 realtime anomaly detection strategies
+Let's evaluate 4 real-time anomaly detection strategies
 ```
 from realtime_AD import REALTIME_AD
 from extract_data import extract_one_dataset
@@ -241,5 +237,5 @@ ARTIME  stats: {'tn': 3010, 'fp': 13, 'fn': 403, 'tp': 2, 'f1': 0.0095}
 OSE  stats: {'tn': 2943, 'fp': 80, 'fn': 378, 'tp': 27, 'f1': 0.1055}
 ```
 
-The realtime strategy are less accurate than offline ones. However, they do not require to repeat the training when new data samples are incoming.
+The real-time strategy is less accurate than offline ones. However, they do not require to repeat the training when new data samples are incoming.
 ARTime strategy fails while the author published amazing results. I am investigating further.
