@@ -1,10 +1,10 @@
 This repo aims to compare different recent anomaly detection methods.
 
-Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on new data samples where we are looking for anomalies. There are two main approaches: real-time anomaly detection and offline anomaly detection. In this project, I focus on univariate anomaly detection with unsupervised learning.
+Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on the remainder of the time series where we are looking for anomalies. Two main approaches are evaluated: real-time anomaly detection and offline anomaly detection. Only univariate anomaly detection with unsupervised learning is evaluated here.
 
 # METHODS
 
-**Offline time series anomaly detection** takes a fixed sequence of input data samples as input called a frame, and returns if there is an anomaly in the frame. They are convenient methods to detect anomalies in stored files with maximum reliability.
+**Offline time series anomaly detection** takes a fixed sequence of input data samples as input named a "frame", and returns if there is an anomaly in the frame. They are convenient methods to detect anomalies in stored files with maximum reliability.
 The usual workflow runs the following steps (you can follow them in the lower figure):
 1. The input signal is **split between training/testing**. The first samples serve to train/calibrate the detector, and the following serves to test its ability to ring anomalies when needed. For each time series here, I use a  15%/85% ratio of training/testing data samples.
 3. The signal is **standardized**. Like it is commonly done, we compute mean &mu; and std &sigma; on the training (anomaly-free) signal. Then we standardize x_train=(x_train-&mu;)/(&sigma;) and x_test=(x_test-&mu;)/(&sigma;)
@@ -12,12 +12,12 @@ The usual workflow runs the following steps (you can follow them in the lower fi
 5. The detector is **trained** on the training split.
 6. During the **inference phase**, the frame of values is given to the detector.
 
-The Python code below shows a common approach to train and predicting with a detector (5th and 6th steps above).
+The Python code below shows a common piece of code to train and predict (5th and 6th steps above).
 ```python
 hyperparameters={"n_estimator":128}
 from sklearn.ensemble import IsolationForest
 model=IsolationForest(hyperparameters)
-model.fit(X_train_frames) # we can iterate on fit to improve the model
+model.fit(X_train_frames) # we can iterate on "fit" method to improve the model
 anomaly_detection=model.predict(X_test_frames)
 ```
 
@@ -25,7 +25,7 @@ anomaly_detection=model.predict(X_test_frames)
 ```python
 hyperparameters={"n_estimator":128}
 from sklearn.ensemble import IsolationForest
-model=IsolationForest(X_train, hyperparameters) # don't need to iterate on the training phase. We passe
+model=IsolationForest(X_train, hyperparameters) # we don't need to iterate on the training phase. It is common to give it to the constructor
 anomaly_detection=[]
 for v in gen_X_test(): #generator producing 1-per-1 test value
 	a=model.predict(v)
