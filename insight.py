@@ -3,7 +3,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score
 import numpy as np
 from typing import Optional
-
+import os
 
 def confusion_matrix_and_F1(y_pred,y_true):
     # Some timeseries does not contains abnormaly. We avoid division per zero by yielding accuracy instead of f1.
@@ -85,20 +85,29 @@ def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred
         plt.savefig(path)
     plt.close() #mandatory if you call multiple time to draw multiple figures
 
-def mosaic(paths,fname):
+def mosaic(paths,fname,txt,ncols=6,nrows=9):
     from matplotlib import pyplot as plt
     from PIL import Image
+
+    valid_paths=[]
+    for p in paths:
+        if os.path.exists(p):
+            valid_paths.append(p)
+        else:
+            print(f"warning: the plot {p} is not found")
+
     # I need to put 51 images (6*9=54 places) with ratio 4:3 (640x480 pixels)
-    ncols = 6
-    nrows = 9
+    assert(len(valid_paths)<=ncols*nrows)
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 4, nrows * 3))
-    for path_id, path in enumerate(paths):
+
+    for path_id, path in enumerate(valid_paths):
         raw_image = Image.open(path)
         i = path_id % ncols
         j = path_id // ncols
         axes[j, i].set_axis_off()
         axes[j, i].imshow(raw_image)
     plt.tight_layout()
+    plt.text(0,0,txt,fontdict={"fontsize":"x-large"})
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig(fname)
 
