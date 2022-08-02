@@ -176,12 +176,12 @@ AE as features extractor and AE as detectors means two autoencoders are cascadin
 ## LARGE-SCALE INSIGHT
 I take the simple and fast strategy consisting in applying Isolation Forest on a standardized signal.
 ```python
-
-    from extract_data import extract_datasets
-    datasets=extract_datasets("./data/NAB/")
-    feature_extractor="IDENTITY"
-    detector="OSE"
-    LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
+from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
+from extract_data import extract_datasets
+datasets=extract_datasets("./data/NAB/")
+feature_extractor="IDENTITY"
+detector="IFOREST"
+LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
 ```
 
 ![Large-scale anomaly detection](mosaic_IFOREST.png)
@@ -198,7 +198,7 @@ Legend:
 
 # ONLINE STRATEGY - EXPERIMENTAL RESULTS
 Let's evaluate 4 real-time anomaly detection strategies
-```
+```python
 from realtime_AD import REALTIME_AD
 from extract_data import extract_one_dataset
 dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
