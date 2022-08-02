@@ -109,7 +109,7 @@ realKnownCause/ec2_request_latency_system_failure.csv  stats: {'tn': 1578, 'fp':
 Exception with dataset realKnownCause/machine_temperature_system_failure.csv type:<class 'ValueError'> msg:The beginning of the time series should be anomaly-free
 realKnownCause/machine_temperature_system_failure.csv  stats: {'tn': 1578, 'fp': 1377, 'fn': 130, 'tp': 216, 'f1': 0.2228}
 realKnownCause/cpu_utilization_asg_misconfiguration.csv  stats: {'tn': 12347, 'fp': 1370, 'fn': 408, 'tp': 1091, 'f1': 0.551}
-<pre><b> ... ~50 lines are masked for visibility purpose </b></pre>
+... ~50 lines are masked for visibility purpose
 realAWSCloudwatch/ec2_cpu_utilization_24ae8d.csv  stats: {'tn': 2666, 'fp': 229, 'fn': 304, 'tp': 102, 'f1': 0.2768}
 ```
 
