@@ -25,7 +25,8 @@ anomaly_detection=model.predict(X_test_frames)
 ```python
 hyperparameters={"n_estimator":128}
 from sklearn.ensemble import IsolationForest
-model=IsolationForest(X_train, hyperparameters) # we don't need to iterate on the training phase. It is common to give it to the constructor
+# We don't need to iterate on the training phase. It is common to give training samples to the constructor.
+model=IsolationForest(X_train, hyperparameters)
 anomaly_detection=[]
 for v in gen_X_test(): #generator producing 1-per-1 test value
 	a=model.predict(v)
