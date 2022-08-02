@@ -176,41 +176,15 @@ AE as features extractor and AE as detectors means two autoencoders are cascadin
 ## LARGE-SCALE INSIGHT
 I take the simple and fast strategy consisting in applying Isolation Forest on a standardized signal.
 ```python
-import os
-from extract_data import extract_datasets
-from offline_AD import OFFLINE_AD
-from insight import plot_curves, mosaic
-datasets=extract_datasets("./data/NAB/")
-paths=[] # we will build a beautiful mosaic
-for dataset_name, dataset in datasets.items():
-    try:
-        stats=None
-        stats,details=OFFLINE_AD(dataset,
-                train_test_split_rate=0.15,
-                frame_size=128,
-                normalize_strategy_name="STD",
-                FE_frame_strategy_name="IDENTITY",
-                AD_strategies_name="IFOREST"
-            )
-    except Exception as err:
-        print(f"Exception with dataset {dataset_name} type:{type(err)} msg:{err}")
-    if stats is not None:
-        # Monitor
-        print(dataset_name, " stats:", stats)
-        name = dataset_name.replace(os.sep, "_").split(".")[0] + "_isolation_forest"
-        path = os.path.join("media", name + ".png")
-        paths.append(path)
-        txt = name + "\nF1-score:" + str(stats["f1"])
-        plot_curves(x_train=details["train_dataset"]["x"],
-                    x_test=details["test_dataset"]["x"],
-                    y_test=details["test_dataset"]["y"],
-                    y_pred=details["y_test_pred"],
-                    frame_size=details["frame_size"],
-                    path=path, txt=txt)
-mosaic(paths,"mosaic.png")
+
+    from extract_data import extract_datasets
+    datasets=extract_datasets("./data/NAB/")
+    feature_extractor="IDENTITY"
+    detector="OSE"
+    LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
 ```
 
-![Large-scale anomaly detection](mosaic.png)
+![Large-scale anomaly detection](mosaic_IFOREST.png)
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
 Legend:
