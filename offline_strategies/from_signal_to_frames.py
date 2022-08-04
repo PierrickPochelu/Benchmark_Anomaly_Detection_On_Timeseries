@@ -3,16 +3,19 @@ import numpy as np
 
 def create_sequences(values, frame_size):
     output = []
-    for i in range(len(values) - frame_size + 1):
+    nb_frames=get_nb_frames(values,frame_size)
+    for i in range(nb_frames):
         output.append(values[i : (i + frame_size)])
     stacked_frames=np.stack(output)
     stacked_frames=stacked_frames.reshape((stacked_frames.shape[0],stacked_frames.shape[1],1))
     return stacked_frames
 
-def frames(x,y,frame_size, nb_frames):
+def frames(x,frame_size):
     x=create_sequences(x,frame_size).squeeze()
-    return x,y
+    return x
 
+def get_nb_frames(x,frame_size):
+    return len(x) - frame_size + 1
 def data_augment_frames(x, y, frame_size, nb_frames):
     from tsaug import TimeWarp, Crop, Quantize, Drift, AddNoise
 
@@ -32,70 +35,74 @@ def data_augment_frames(x, y, frame_size, nb_frames):
     X_aug=X_aug.reshape((X_aug.shape[0],X_aug.shape[1]))
     return X_aug,Y_aug
 
-def from_signal_to_frame(train_dataset, test_dataset, frame_size, frame_strategy_name):
-    x_train = train_dataset["x"]
-    y_train = train_dataset["y"]
-    nb_train_frames = len(x_train) - frame_size+1
-    x_test = test_dataset["x"]
-    y_test = test_dataset["y"]
-    nb_test_frames = len(x_test) - frame_size+1
 
-    #frame_construction_function=S[frame_strategy]
-    if frame_strategy_name== "IDENTITY":
-        x_frames_train, _ = frames(x_train, y_train, frame_size,nb_train_frames)
-        x_frames_test, _ = frames(x_test, y_test, frame_size, nb_test_frames)
-    elif frame_strategy_name== "DATAAUG":
-         x_frames_train, train_dataset["y"] = data_augment_frames(x_train, y_train, frame_size, nb_train_frames*10)
-         x_frames_test, test_dataset["y"]  = frames(x_test, y_test, frame_size, nb_test_frames)
-         # we ensure ourself those datastruc are not used anymore
-         del train_dataset["x"]
-         del test_dataset["x"]
-    elif frame_strategy_name== "AE":
-        x_frames_train, _ = frames(x_train, y_train, frame_size,nb_train_frames)
-        x_frames_test, _ = frames(x_test, y_test, frame_size, nb_test_frames)
 
-        from offline_strategies.AEC import default_hyperparameters,AE
-        hp=default_hyperparameters()
-        hp["nb_layers"]=2
-        model=AE(hp)
-        model.fit(x_frames_train)
-        x_frames_train=model.features_extractor(x_frames_train).squeeze()
-        x_frames_test=model.features_extractor(x_frames_test).squeeze()
-
-        # re-centering
-        mu=np.mean(x_frames_train)
-        std=np.std(x_frames_train)
-        x_frames_train=(x_frames_train-mu)/std
-        x_frames_test=(x_frames_test-mu)/std
-    elif frame_strategy_name== "ROCKET":
-        # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
-        x_frames_train, _ = frames(train_dataset["x"], train_dataset["y"], frame_size,nb_train_frames)
-        x_frames_test, _ = frames(test_dataset["x"], test_dataset["y"], frame_size, nb_test_frames)
-
-        def rocket_pre_shape(x):
-            return x.reshape((1, len(x)))
-
-        def rocket_post_shape(x):
-            x=x.T
-            return x.squeeze()
-
-        hyperparameters = {"n_kernels": 128, "kernel_sizes": [7,9,11]}
-        # https://pyts.readthedocs.io/en/stable/modules/transformation.html
-        from pyts.transformation import ROCKET
-        def ROCKET_transform(hyperparameters: dict, frame: np.ndarray) -> np.ndarray:
-            model = ROCKET(**hyperparameters)
-            pre_frame=rocket_pre_shape(frame)
-            features_extracted_frame=model.fit_transform(pre_frame)
-            post_frame=rocket_post_shape(features_extracted_frame)
-            return post_frame
-
-        rocket_x_frames_train=np.array([ROCKET_transform(hyperparameters,frame) for frame in x_frames_train])
-        rocket_x_frames_test=np.array([ROCKET_transform(hyperparameters,frame) for frame in x_frames_test])
-        x_frames_train, x_frames_test = rocket_x_frames_train, rocket_x_frames_test
-    else:
-        raise ValueError(f"ERROR in from_signal_to_frame() strategy unknown {frame_strategy_name} ")
-
+def IDENTITY(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    x_frames_train = frames(train_dataset["x"], frame_size)
+    x_frames_test = frames(test_dataset["x"], frame_size)
     return x_frames_train, x_frames_test
+def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels": 128, "kernel_sizes": [7, 9, 11]}):
+    # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
+    nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
+    nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
+    x_frames_train = frames(train_dataset["x"], train_dataset["y"], frame_size, nb_train_frames)
+    x_frames_test = frames(test_dataset["x"], test_dataset["y"], frame_size, nb_test_frames)
+
+    def rocket_pre_shape(x):
+        return x.reshape((1, len(x)))
+
+    def rocket_post_shape(x):
+        x = x.T
+        return x.squeeze()
+
+    # https://pyts.readthedocs.io/en/stable/modules/transformation.html
+    from pyts.transformation import ROCKET
+    def ROCKET_transform(hyperparameters: dict, frame: np.ndarray) -> np.ndarray:
+        model = ROCKET(**hyperparameters)
+        pre_frame = rocket_pre_shape(frame)
+        features_extracted_frame = model.fit_transform(pre_frame)
+        post_frame = rocket_post_shape(features_extracted_frame)
+        return post_frame
+
+    rocket_x_frames_train = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_train])
+    rocket_x_frames_test = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_test])
+    return rocket_x_frames_train, rocket_x_frames_test
+def AE_features_extractor(train_dataset,test_dataset,frame_size,hyperparameters={}):
+
+    x_frames_train, x_frames_test = IDENTITY(train_dataset,test_dataset,frame_size)
+
+    nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
+    nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
+
+    from offline_strategies.AEC import default_hyperparameters, AE
+    hp = default_hyperparameters()
+    hp["nb_layers"] = 2
+    hp.update(hyperparameters)
+
+    model = AE(hp)
+    model.fit(x_frames_train)
+    x_frames_train = model.features_extractor(x_frames_train).squeeze()
+    x_frames_test = model.features_extractor(x_frames_test).squeeze()
+
+    # re-centering
+    mu = np.mean(x_frames_train)
+    std = np.std(x_frames_train)
+    x_frames_train = (x_frames_train - mu) / std
+    x_frames_test = (x_frames_test - mu) / std
+    return x_frames_train,x_frames_test
+
+def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier":10}):
+    x_train=train_dataset["x"]
+    y_train=train_dataset["y"]
+    x_test=test_dataset["x"]
+    y_test=test_dataset["y"]
+    nb_wanted_frames=get_nb_frames(x_train,frame_size)*hyperparameters["multiplier"]
+    x_frames_train, train_dataset["y"] = data_augment_frames(x_train, y_train, frame_size, nb_wanted_frames)
+    x_frames_test = frames(x_test, y_test, frame_size)
+    return x_frames_train, x_frames_test
+
+
+
 
 if __name__=="__main__":
 

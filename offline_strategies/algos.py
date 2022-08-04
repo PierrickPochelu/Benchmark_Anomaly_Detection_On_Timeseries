@@ -33,11 +33,12 @@ def elliptic_envelope(x_train_frames, x_test_frames):
     model.fit(x_train_frames)
     return sklearn_post_process(model,x_train_frames, x_test_frames)
 
-def AE_reconstruction(x_train_frames, x_test_frames):
+def AE_reconstruction(x_train_frames, x_test_frames,hyperparameters={}):
     from offline_strategies.AEC import default_hyperparameters,AE
-    hyperparameters=default_hyperparameters()
-    hyperparameters["nb_layers"]=4
-    model=AE(hyperparameters)
+    hp=default_hyperparameters()
+    hp["nb_layers"]=4
+    hp.update(hyperparameters)
+    model=AE(hp)
     model.fit(x_train_frames)
     x_test_pred=model.predict(x_test_frames)
     del model
