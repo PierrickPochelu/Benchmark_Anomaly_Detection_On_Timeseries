@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from typing import Union,Tuple,Optional
 from strat_map import detector_strat_map, feature_extractor_strat_map
@@ -34,6 +36,7 @@ def EXPERIMENT(
         AD_strategies_name:Union[str,list]="IFOREST",
         AD_hyperparameters:Optional[dict]=None
                )->Tuple[Optional[dict],Optional[dict]]:
+    experimental_result={}
 
     # NORMALIZE: strategies: STD
     try:
@@ -60,10 +63,9 @@ def EXPERIMENT(
 
     features_extractor=feature_extractor_strat_map[FE_frame_strategy_name]
 
-
     # PREPARE TIMESTEPS FOR OFFLINE TRAINING: DATAAUG, AE, SIMPLE, ROCKET
-    # TODO: investigate further a better architecture
-    if any(is_realtime_vec):
+    start_time=time.time()
+    if not any(is_realtime_vec):
         x_train_frames,x_test_frames=parametrized_feature_detector(train_dataset=train_dataset,
                                                                    test_dataset=test_dataset,
                                                                    frame_size=frame_size,
@@ -75,23 +77,21 @@ def EXPERIMENT(
     ensemble_size=len(AD_strategies_name)
     y_test_pred=None
     for detector_f,is_realtime in zip(detector_func_pointers,is_realtime_vec):
-
-
         #TODO: investigate further a better architecture (how best handle optional and default arguments ?).
         if is_realtime:
             x_test_pred_local = detector_f(train_dataset, test_dataset) if AD_hyperparameters is None \
-                else detector_f(x_train_frames, x_test_frames)
-
+                else detector_f(train_dataset, test_dataset,AD_hyperparameters)
         else:
             x_test_pred_local=detector_f(x_train_frames,x_test_frames) if AD_hyperparameters is None \
-                else detector_f(x_train_frames,x_test_frames)
+                else detector_f(x_train_frames,x_test_frames,AD_hyperparameters)
 
         if y_test_pred is None:
             y_test_pred=x_test_pred_local/ensemble_size
         else:
             y_test_pred+=x_test_pred_local/ensemble_size
     y_test_pred=y_test_pred>0.5
-
+    enlapsed_time=round(time.time()-start_time,3)
+    experimental_result.update({"time":enlapsed_time})
 
     from insight import confusion_matrix_and_F1
 
@@ -100,15 +100,16 @@ def EXPERIMENT(
     # Today, it is impossible to make an ensemble between those two strategies
     if any(is_realtime_vec):
         y_test = test_dataset['y']
-        stats = confusion_matrix_and_F1(y_test_pred, y_test)
+        AD_quality_preds = confusion_matrix_and_F1(y_test_pred, y_test)
         frame_size=1
     else:
         y_test_frames=test_dataset['y'][frame_size-1:]
-        stats=confusion_matrix_and_F1(y_test_pred,y_test_frames)
+        AD_quality_preds=confusion_matrix_and_F1(y_test_pred,y_test_frames)
 
+    experimental_result.update(AD_quality_preds)
     details={"train_dataset":train_dataset,"test_dataset":test_dataset,"frame_size":frame_size,
              "y_test_pred":y_test_pred}
-    return stats, details
+    return experimental_result, details
 
 if __name__=="__main__":
     # GET DATA

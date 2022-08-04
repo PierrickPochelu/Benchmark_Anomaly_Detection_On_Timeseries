@@ -85,7 +85,7 @@ def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred
         plt.savefig(path)
     plt.close() #mandatory if you call multiple time to draw multiple figures
 
-def mosaic(paths,fname,txt,ncols=6,nrows=9):
+def mosaic(paths, fname, total_experimental_result, ncols=6, nrows=9):
     from matplotlib import pyplot as plt
     from PIL import Image
 
@@ -107,9 +107,15 @@ def mosaic(paths,fname,txt,ncols=6,nrows=9):
         axes[j, i].set_axis_off()
         axes[j, i].imshow(raw_image)
     plt.tight_layout()
-    plt.text(0,0,txt,fontdict={"fontsize":"x-large"})
+    # write global scores in the last tile of the mosaic
+    txt=f"mean(F1_scores):{total_experimental_result['f1']}\n" \
+        f"tp:{total_experimental_result['tp']} tn:{total_experimental_result['tn']}\n" \
+        f"fp:{total_experimental_result['fp']} fn:{total_experimental_result['fn']}\n" \
+        f"enlapsed_time:{total_experimental_result['time']}"
+    plt.text(0.01, 0.3, txt, fontdict={"fontsize": "x-large"})
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig(fname)
+
 
 if __name__=="__main__":
     x=np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.2,0.2,0.8,0.9])
