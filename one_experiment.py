@@ -34,7 +34,8 @@ def EXPERIMENT(
         FE_frame_strategy_name:str="IDENTITY",
         FE_hyperparameters:Optional[dict]=None, #If none it means default ones
         AD_strategies_name:Union[str,list]="IFOREST",
-        AD_hyperparameters:Optional[dict]=None
+        AD_hyperparameters:Optional[dict]=None,
+        proba_thresh:float=0.5
                )->Tuple[Optional[dict],Optional[dict]]:
     experimental_result={}
 
@@ -89,7 +90,7 @@ def EXPERIMENT(
             y_test_pred=x_test_pred_local/ensemble_size
         else:
             y_test_pred+=x_test_pred_local/ensemble_size
-    y_test_pred=y_test_pred>0.5
+    y_test_pred=y_test_pred>proba_thresh
     enlapsed_time=round(time.time()-start_time,3)
     experimental_result.update({"time":enlapsed_time})
 

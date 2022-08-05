@@ -115,7 +115,7 @@ def mosaic(paths, fname, total_experimental_result, ncols=6, nrows=9):
     plt.text(0.01, 0.3, txt, fontdict={"fontsize": "x-large"})
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.savefig(fname)
-
+    plt.close()
 
 if __name__=="__main__":
     x=np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.2,0.2,0.8,0.9])

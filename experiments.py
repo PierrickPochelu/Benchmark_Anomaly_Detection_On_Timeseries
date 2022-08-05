@@ -18,7 +18,8 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
                                      frame_size=128,
                                      normalize_strategy_name="STD",
                                      FE_frame_strategy_name=feature_extractor_name,
-                                     AD_strategies_name=detector_name
+                                     AD_strategies_name=detector_name,
+                                     proba_thresh=0.5
                                      )
             if stat is not None:
                 # Monitor

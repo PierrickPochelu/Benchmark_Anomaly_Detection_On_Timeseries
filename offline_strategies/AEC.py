@@ -1,13 +1,34 @@
-import numpy as np
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import InteractiveSession
+config = ConfigProto()
+config.gpu_options.allow_growth = True
+session = InteractiveSession(config=config)
+
 from tensorflow import keras
 from keras.backend import clear_session
 from tensorflow.keras import layers
+import numpy as np
 
 def default_hyperparameters():
     return {"nb_layers":4, "K": 7,"K_reduc":0, "init_filters": 32,"dropout_rate":0.2, "lr":0.001,
-            "batch_size":128,"l2_reg":0.001,"percentile":99}
+            "batch_size":128,"l2_reg":0.001,"percentile":0.999}
+
+def _from_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
+    # check
+    assert (1. >= rescaled_reconstruction_loss >= 0.)
+    assert (1. >= rescaled_thresh >= 0.)
 
 
+    if rescaled_reconstruction_loss > rescaled_thresh:
+        reconstruction_proba = ((1. - 0.5) / (1 - rescaled_thresh)) * (
+                    rescaled_reconstruction_loss - rescaled_thresh)+0.5
+    elif rescaled_reconstruction_loss < rescaled_thresh:
+        reconstruction_proba = ((0.5 - 0.) / (rescaled_thresh - 0.)) * (rescaled_reconstruction_loss - 0)
+    else:
+        reconstruction_proba = 0.5
+
+    reconstruction_proba=np.clip(reconstruction_proba,0,1)
+    return reconstruction_proba
 
 class AE:
     def __init__(self, hyperparameters):
@@ -31,13 +52,13 @@ class AE:
         self.model=None
         self.threshold=None
 
-    def _keras_pre_shape(self,x):
-        return np.reshape(x,(x.shape[0],x.shape[1],1))
-    def _keras_post_shape(self,x):
+    def _from_2Darray_to_3D_array(self, x):
+        return np.reshape(x,(x.shape[0], x.shape[1], 1))
+    def _from_3Darray_to_2Darray(self, x):
         return np.reshape(x,(x.shape[0],x.shape[1]))
 
     def fit(self,x_train_frames):
-        x_train_frames=self._keras_pre_shape(x_train_frames)
+        x_train_frames=self._from_2Darray_to_3D_array(x_train_frames)
 
         reg=keras.regularizers.l2(self.L2_REG)
         a="relu" #keras.layers.LeakyReLU(alpha=0.01)
@@ -92,18 +113,31 @@ class AE:
         # compute anomal threshold
         x_train_pred = self.model.predict(x_train_frames,verbose=0)
         train_reconstruction_loss = np.mean(np.abs(x_train_pred - x_train_frames), axis=1)
-        self.threshold = np.percentile(train_reconstruction_loss,self.PERCENTILE)
-        #print("Reconstruction error threshold: ", self.threshold)
+        self.threshold = np.quantile(train_reconstruction_loss,self.PERCENTILE)
+        self.max=max(np.max(train_reconstruction_loss),self.threshold*2) # I propose to handle it like this
+        self.min=np.min(train_reconstruction_loss)
+
+
+
 
     def predict(self,x_frames):
         assert(self.model is not None)
         assert(self.threshold is not None)
-        x_frames = self._keras_pre_shape(x_frames)
-        x_frames_pred = self.model.predict(x_frames,verbose=0)
+        x_frames3D = self._from_2Darray_to_3D_array(x_frames)
+        x_frames_pred3D = self.model.predict(x_frames3D,verbose=0)
+        x_frames_pred=self._from_3Darray_to_2Darray(x_frames_pred3D)
+
         reconstruction_loss = np.mean(np.abs(x_frames_pred - x_frames), axis=1)
-        rings=reconstruction_loss > self.threshold
-        rings=np.array(rings).astype(np.float32).squeeze()
-        return rings
+
+        rescaled_thresh=(self.threshold-self.min)/(self.max-self.min)
+        rescaled_reconstruction_loss=((reconstruction_loss-self.min)/(self.max-self.min))
+        rescaled_reconstruction_loss=np.clip(rescaled_reconstruction_loss,0,1)
+
+        probabilities=np.zeros((len(rescaled_reconstruction_loss),))
+        for i,l in enumerate(rescaled_reconstruction_loss):
+            probabilities[i]=_from_loss_to_proba(l, rescaled_thresh)
+        return probabilities
+
 
     def features_extractor(self,x_frames):
         assert(self.model is not None)

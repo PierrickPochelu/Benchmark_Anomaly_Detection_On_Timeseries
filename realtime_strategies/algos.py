@@ -106,12 +106,11 @@ def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
     algo=AR(train_dataset,hyperparameters)
     rings=get_anomaly_scores(algo, train_dataset)
     thresh=np.quantile(rings,0.99)+0.0001
-    print(rings)
     return predict_with_strat(algo, test_dataset, thresh)
 
 
 def OSE(train_dataset, test_dataset,hyperparameters={"context_length":128,"neurons":16,
-                                                     "norm_bits":3,"percentile":90,
+                                                     "norm_bits":3,"percentile":0.90,
                                                      "rest_period":1,"threshold":0.75}):
     x_NAB_dataset_train = NAB_dataset(train_dataset)
 
@@ -136,7 +135,7 @@ def OSE(train_dataset, test_dataset,hyperparameters={"context_length":128,"neuro
             for i, v in enumerate(train_dataset['x']):
                 anomaly_score = self.algo.getAnomalyScore({"value": v})
                 anomaly_scores.append(anomaly_score)
-            self.thresh = np.percentile(anomaly_scores, percentile)
+            self.thresh = np.quantile(anomaly_scores, percentile)
 
         def handleRecord(self, inputData):
             anomaly_score = self.algo.getAnomalyScore(inputData)

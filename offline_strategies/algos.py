@@ -42,7 +42,7 @@ def AE_reconstruction(x_train_frames, x_test_frames,hyperparameters={}):
     model.fit(x_train_frames)
     x_test_pred=model.predict(x_test_frames)
     del model
-    return x_test_pred
+    return x_test_pred #return problities and not boolean values
 
 
 
