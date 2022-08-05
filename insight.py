@@ -98,6 +98,7 @@ def mosaic(paths, fname, total_experimental_result, ncols=6, nrows=9):
 
     # I need to put 51 images (6*9=54 places) with ratio 4:3 (640x480 pixels)
     assert(len(valid_paths)<=ncols*nrows)
+    plt.figure(0) # new figure
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * 4, nrows * 3))
 
     for path_id, path in enumerate(valid_paths):

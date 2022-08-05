@@ -37,10 +37,12 @@ def RE(train_dataset, test_dataset,hyperparameters={"nb_bins":5,}):
     realtime_algo.W=len(train_dataset["x"])
     realtime_algo.N_bins=hyperparameters["nb_bins"]
     from scipy import stats
-    realtime_algo.T=stats.chi2.isf(0.2, realtime_algo.N_bins - 1)#stats.chi2.isf(0.01, realtime_algo.N_bins - 1)
 
+
+
+    #realtime_algo.T=stats.chi2.isf(0.01, realtime_algo.N_bins - 1)#stats.chi2.isf(0.01, realtime_algo.N_bins - 1)
     rings=predict_with_strat(realtime_algo, test_dataset)
-    anomaly_score=realtime_algo.P
+    #anomaly_score=realtime_algo.P
     return rings
 
 
@@ -109,7 +111,7 @@ def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
     return predict_with_strat(algo, test_dataset, thresh)
 
 
-def OSE(train_dataset, test_dataset,hyperparameters={"context_length":128,"neurons":16,
+def OSE(train_dataset, test_dataset,hyperparameters={"context_length":7,"neurons":15,
                                                      "norm_bits":3,"percentile":0.90,
                                                      "rest_period":1,"threshold":0.75}):
     x_NAB_dataset_train = NAB_dataset(train_dataset)
@@ -136,10 +138,12 @@ def OSE(train_dataset, test_dataset,hyperparameters={"context_length":128,"neuro
                 anomaly_score = self.algo.getAnomalyScore({"value": v})
                 anomaly_scores.append(anomaly_score)
             self.thresh = np.quantile(anomaly_scores, percentile)
+            self.algo.baseThreshold=self.thresh
+
 
         def handleRecord(self, inputData):
             anomaly_score = self.algo.getAnomalyScore(inputData)
-            return 1 if anomaly_score>self.thresh else 0
+            return anomaly_score
 
     min_val = np.min(x_NAB_dataset_train.data.values)
     max_val = np.max(x_NAB_dataset_train.data.values)
