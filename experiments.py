@@ -9,8 +9,13 @@ from one_experiment import EXPERIMENT
 # LARGE SCALE INSIGHT
 def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets):
     experimenta_result={}
-    paths=[] # we will build a beautiful mosaic
-    stats=[]
+    tmp_dir="tmp"
+    os.makedirs("tmp", exist_ok=True)
+    media_dir="media"
+    os.makedirs("media",exist_ok=True)
+
+    paths_for_mosaic=[] # we will build a beautiful mosaic
+    stats_for_mosaic=[]
     for dataset_name, dataset in datasets.items():
             stat,details=EXPERIMENT(dataset,
                                      dataset_name,
@@ -23,11 +28,12 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
                                      )
             if stat is not None:
                 # Monitor
-                print(dataset_name, " stats:", stat)
+                #print(dataset_name, " stats:", stat)
                 name = dataset_name.replace(os.sep, "_").split(".")[0] + "_isolation_forest"
-                path = os.path.join("media", name + ".png")
-                paths.append(path)
-                stats.append(stat)
+                path = os.path.join("tmp", name + ".png")
+
+                paths_for_mosaic.append(path)
+                stats_for_mosaic.append(stat)
                 txt = name + "\nF1-score:" + str(stat["f1"])
                 plot_curves(x_train=details["train_dataset"]["x"],
                             x_test=details["test_dataset"]["x"],
@@ -37,21 +43,24 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
                             path=path, txt=txt)
 
     # compute global results
-    tp=sum([stat["tp"] for stat in stats])
-    tn=sum([stat["tn"] for stat in stats])
-    fp=sum([stat["fp"] for stat in stats])
-    fn=sum([stat["fn"] for stat in stats])
-    enlapsed_time=round(sum([stat["time"] for stat in stats]),3)
-    mean_f1_scores=round(np.mean([stat["f1"] for stat in stats]),4)
+    tp=sum([stat["tp"] for stat in stats_for_mosaic])
+    tn=sum([stat["tn"] for stat in stats_for_mosaic])
+    fp=sum([stat["fp"] for stat in stats_for_mosaic])
+    fn=sum([stat["fn"] for stat in stats_for_mosaic])
+    enlapsed_time=round(sum([stat["time"] for stat in stats_for_mosaic]),3)
+    mean_f1_scores=round(np.mean([stat["f1"] for stat in stats_for_mosaic]),4)
 
     # display it
     experimental_resut={"time":enlapsed_time, "tp":tp, "tn":tn, "fp":fp, "fn":fn, "f1":mean_f1_scores}
 
-    mosaic(paths, f"{feature_extractor_name}_{detector_name}_mosaic.png", experimental_resut)
+    mosaic_name=f"{feature_extractor_name}_{detector_name}_mosaic.png"
+    mosaic_path=os.path.join(media_dir,mosaic_name)
+    mosaic(paths_for_mosaic, mosaic_path, experimental_resut)
 
-    # delete cache files used to compute the mosaic
-    for p in paths:
-        if os.path.exists(p):
-            os.remove(p)
+    # delete cached files used to compute the mosaic
+    for fname in os.listdir(tmp_dir):
+        fpath=os.path.join(tmp_dir,fname)
+        if os.path.exists(fpath):
+            os.remove(fpath)
     print("ok")
     return experimental_resut
