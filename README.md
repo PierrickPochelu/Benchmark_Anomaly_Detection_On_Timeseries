@@ -36,7 +36,7 @@ for v in gen_X_test(): #generator producing 1-per-1 test value
 
 To compare multiple workflows at scale on many time series I design this workflow. It allows to loop easily or distributed the computing of the experiments. Each step needs to be called using their id-name and may require specific hyperparameters.
 
-![Big picture of the workflow](workflow.png)
+![Big picture of the workflow](media/workflow.png)
 
 Methods used:
 - Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
@@ -77,65 +77,33 @@ The tested algorithms can be evaluated beyond those 51 files. Further possible i
 
 # OFFLINE STRATEGY - EXPERIMENTAL RESULTS
 
-Let's compare a simple strategy on all datasets. It consists to used the normed signal frame-per-frame to IsolationForest. The length of frames is 128 values, and 15% of the time series are used as unsupervised training ("unsupervised" but we know there is no anomaly in the training split).
-
-```python
-import os
-from extract_data import extract_datasets
-from offline_AD import OFFLINE_AD
-from insight import plot_curves
-datasets=extract_datasets("./data/NAB/")
-paths=[] # we will build a beautiful mosaic
-for dataset_name, dataset in datasets.items():
-    try:
-        stats=None
-        stats,details=OFFLINE_AD(dataset,
-                train_test_split_rate=0.15,
-                frame_size=128,
-                normalize_strategy_name="STD",
-                FE_frame_strategy_name="IDENTITY",
-                AD_strategies_name="IFOREST" #IsolationForest
-            )
-    except Exception as err:
-        print(f"Exception with dataset {dataset_name} type:{type(err)} msg:{err}")
-    if stats is not None:
-        print(dataset_name, " stats:", stats)
-```
-
-It produces:
-```
-realKnownCause/rogue_agent_key_hold.csv  stats: {'tn': 422, 'fp': 861, 'fn': 0, 'tp': 190, 'f1': 0.3062}
-realKnownCause/ec2_request_latency_system_failure.csv  stats: {'tn': 1578, 'fp': 1377, 'fn': 130, 'tp': 216, 'f1': 0.2228}
-Exception with dataset realKnownCause/machine_temperature_system_failure.csv type:<class 'ValueError'> msg:The beginning of the time series should be anomaly-free
-realKnownCause/machine_temperature_system_failure.csv  stats: {'tn': 1578, 'fp': 1377, 'fn': 130, 'tp': 216, 'f1': 0.2228}
-realKnownCause/cpu_utilization_asg_misconfiguration.csv  stats: {'tn': 12347, 'fp': 1370, 'fn': 408, 'tp': 1091, 'f1': 0.551}
-... ~50 lines are masked for visibility purpose
-realAWSCloudwatch/ec2_cpu_utilization_24ae8d.csv  stats: {'tn': 2666, 'fp': 229, 'fn': 304, 'tp': 102, 'f1': 0.2768}
-```
+To analyse a result and compare fairly multiple pipelines it is required to evaluate them on a large number of independant timeseries.
 
 ## Comparing different features extractors
-The training and testing signals have been normed, I fix the dataset (art_daily_jumpsdown) and the anomaly detector step (Isolation Forest). An ideal methodology should compute the F1-score acress dozens of different datasets and different runtimes (random seeds) but would increase significantly the training time.
+
+I compare a few implemented features extractor with a commonly used detector: IsolationForest. The tested features extraction strategy are:
+* The raw normed signal (key-word: "IDENTITY") rocket and 
+* Features extracted from an autoencoder ("AE")
+* ROCKET algorithm, see ref. below ("ROCKET"")
+* Data-augmented raw normed signal ("DATAAUG")
+
 ```python
-from offline_AD import OFFLINE_AD
-from extract_data import extract_one_dataset
-dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
-for feature_extractor in ["IDENTITY",
-                          "AE",
-                          "ROCKET",
-                          "DATAAUG"]:
-    stats,details=OFFLINE_AD(dataset,
-            train_test_split_rate=0.15,
-            frame_size=128,
-            normalize_strategy_name="STD",
-            FE_frame_strategy_name=feature_extractor,
-            AD_strategies_name="IFOREST" #IsolationForest
-        )
-    print(feature_extractor," stats:", stats)
+from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
+from strat_map import detector_strat_map,feature_extractor_strat_map
+if __name__=="__main__":
+    from extract_data import extract_datasets
+    datasets=extract_datasets("./data/NAB/")
+    detector_strat_name= "IFOREST" # Isolation Forest implemented by scikit-learn
+    for fe_strat_name in feature_extractor_strat_map.keys(): # for each known detection strategy
+        results=LAUNCH_EXPERIMENTS_AT_SCALE(fe_strat_name, detector_strat_name, datasets)
+        print(fe_strat_name, detector_strat_name, results)
 ```
 produces:
 ```
+
+AE IFOREST {'time': 3307.888, 'tp': 6825, 'tn': 163323, 'fp': 27891, 'fn': 16106, 'f1': 0.287}
+
 IDENTITY  stats: {'tn': 2866, 'fp': 30, 'fn': 310, 'tp': 95, 'f1': 0.3585}
-AE  stats: {'tn': 2842, 'fp': 54, 'fn': 288, 'tp': 117, 'f1': 0.4062}
 ROCKET  stats: {'tn': 2652, 'fp': 244, 'fn': 379, 'tp': 26, 'f1': 0.077}
 DATAAUG  stats: {'tn': 2886, 'fp': 10, 'fn': 314, 'tp': 91, 'f1': 0.3597}
 ```
@@ -146,45 +114,46 @@ More investigations should sweep other technics available. Pyts framework propos
 
 ## Compare different offline algorithms
 
-Now we see AE is a better feature extractors, we will compare different detectors
-```python
-from offline_AD import OFFLINE_AD
-from extract_data import extract_one_dataset
-dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
-#for detector in ["AE","ELLIPTIC","ONESVM","IFOREST", [IFOREST,AE]]:
-for detector in ["AE","ELLIPTIC","ONESVM","IFOREST"]:
-    stats,details=OFFLINE_AD(dataset,
-                train_test_split_rate=0.15,
-                frame_size=128,
-                normalize_strategy_name="STD",
-                FE_frame_strategy_name="AE",
-                AD_strategies_name=detector #IsolationForest
-            )
-    print(detector, " stats:", stats)
-```
-produces
-```
-AE  stats: {'tn': 2864, 'fp': 32, 'fn': 232, 'tp': 173, 'f1': 0.5672}
-ELLIPTIC  stats: {'tn': 2890, 'fp': 6, 'fn': 404, 'tp': 1, 'f1': 0.0049}
-ONESVM  stats: {'tn': 1496, 'fp': 1400, 'fn': 187, 'tp': 218, 'f1': 0.2155}
-IFOREST  stats: {'tn': 2834, 'fp': 62, 'fn': 290, 'tp': 115, 'f1': 0.3952}
-```
-
 AE as features extractor and AE as detectors means two autoencoders are cascading. This cascade is way better than 1 single AE+IsolationForest (f1: 0.4062) but it requires two AE and they are significantly slower than non-deep ML algorithms such as IsolationForest.
 
 
-## LARGE-SCALE INSIGHT
-I take the simple and fast strategy consisting in applying Isolation Forest on a standardized signal.
+## LARGE-SCALE EXPERIMENTAL RESULTS
+I loop on all detector algorithms by fixing the features extraction strateg to "IDENTITY"
+
 ```python
 from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
-from extract_data import extract_datasets
-datasets=extract_datasets("./data/NAB/")
-feature_extractor="IDENTITY"
-detector="IFOREST"
-LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
+from strat_map import detector_strat_map,feature_extractor_strat_map
+if __name__=="__main__":
+    from extract_data import extract_datasets
+    datasets=extract_datasets("./data/NAB/")
+    feature_extractor="IDENTITY"
+
+    for detector in detector_strat_map.keys(): # for each known detection strategy
+        print("Compute the mosaic with the strategy: ", detector)
+        results=LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
+        print(feature_extractor, detector, results)
+```
+produces:
+```
+IDENTITY RE {'time': 141.267, 'tp': 878, 'tn': 194490, 'fp': 2714, 'fn': 22540, 'f1': 0.1438}
+IDENTITY CADKNN {'time': 1783.387, 'tp': 14517, 'tn': 110398, 'fp': 86806, 'fn': 8901, 'f1': 0.2673}
+IDENTITY ARTIME {'time': 81.399, 'tp': 122, 'tn': 197014, 'fp': 190, 'fn': 23296, 'f1': 0.1119}
+IDENTITY OSE {'time': 3017.315, 'tp': 5986, 'tn': 169234, 'fp': 27970, 'fn': 17432, 'f1': 0.1947}
+IDENTITY IFOREST {'time': 33.986, 'tp': 7928, 'tn': 157209, 'fp': 34005, 'fn': 15003, 'f1': 0.2964}
+IDENTITY ONESVM {'time': 25.76, 'tp': 13101, 'tn': 78298, 'fp': 112916, 'fn': 9830, 'f1': 0.2249}
+IDENTITY ELLIPTIC {'time': 673.583, 'tp': 6967, 'tn': 167652, 'fp': 23562, 'fn': 15964, 'f1': 0.2921}
+IDENTITY AE {'time': 3394.014, 'tp': 10083, 'tn': 147247, 'fp': 43967, 'fn': 12848, 'f1': 0.3396}
 ```
 
-![Large-scale anomaly detection](mosaic_IFOREST.png)
+**Autoencoders is the most accurate at the cost of longer runtime. Isolation Forest is a g ood tradeof between accuracy and speed. The real-time strategies are less accurate than offline ones. This is why I am investigating further the offline ones.**
+
+The lines 
+
+## LARGE-SCALE INSIGHT
+I take the simple and fast strategy consisting in applying Isolation Forest on the standardized signal. I plot below the timeseries, the detection and the labels.
+
+![Large-scale anomaly detection](./media/iDENTITY_AE_mosaic.png)
+
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
 Legend:
@@ -195,28 +164,3 @@ Legend:
 - orange: False positive error
 
 **The margin for improvement is obvious. On the majority of time series it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).**
-
-# ONLINE STRATEGY - EXPERIMENTAL RESULTS
-Let's evaluate 4 real-time anomaly detection strategies
-```python
-from realtime_AD import REALTIME_AD
-from extract_data import extract_one_dataset
-dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
-for detector in ["RE", "CADKNN", "ARTIME","OSE"]:
-    stats=REALTIME_AD(dataset,
-                train_test_split_rate=0.15,
-                normalize_strategy_name="STD",
-                AD_strategies_name=detector
-            )
-    print(detector, " stats:", stats)
-```
-produces:
-```
-RE  stats: {'tn': 3004, 'fp': 19, 'fn': 399, 'tp': 6, 'f1': 0.0279}
-CADKNN  stats: {'tn': 1568, 'fp': 1455, 'fn': 198, 'tp': 207, 'f1': 0.2003}
-ARTIME  stats: {'tn': 3010, 'fp': 13, 'fn': 403, 'tp': 2, 'f1': 0.0095}
-OSE  stats: {'tn': 2943, 'fp': 80, 'fn': 378, 'tp': 27, 'f1': 0.1055}
-```
-
-**The real-time strategy is less accurate than offline ones. However, they do not require to repeat the training when new data samples are incoming.
-ARTime strategy fails while the author published amazing results. I am investigating further.**
