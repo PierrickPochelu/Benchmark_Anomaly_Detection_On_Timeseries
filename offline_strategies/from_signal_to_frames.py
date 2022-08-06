@@ -19,6 +19,7 @@ def get_nb_frames(x,frame_size):
 def data_augment_frames(x, y, frame_size, nb_frames):
     from tsaug import TimeWarp, Crop, Quantize, Drift, AddNoise
 
+    """
     lahf=0.1 # low amplitude high frequency
     hilf=0.05 # high amplitude low frequency
     my_augmenter = (Crop(size=frame_size)*nb_frames +  # random crop subsequences
@@ -30,6 +31,14 @@ def data_augment_frames(x, y, frame_size, nb_frames):
                     Drift(max_drift=(0, 0.1), n_drift_points=[2,4], kind="multiplicative") @ hilf +
                     AddNoise(scale=(0., 0.05)) @ lahf +
                     AddNoise(scale=(0., 0.1)) @ hilf
+                    )
+    """
+    lahf=0.2
+    my_augmenter = (Crop(size=frame_size)*nb_frames +  # random crop subsequences
+                    TimeWarp(max_speed_ratio=2) @ lahf +
+                    Quantize(n_levels=[16]) @ lahf +  # random quantization
+                    Drift(max_drift=(0, 0.05),n_drift_points=[1,2],kind="multiplicative") @ lahf +
+                    AddNoise(scale=(0., 0.05)) @ lahf
                     )
     X_aug, Y_aug = my_augmenter.augment(x, y)
     X_aug=X_aug.reshape((X_aug.shape[0],X_aug.shape[1]))
@@ -45,8 +54,8 @@ def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels":
     # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
     nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
     nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
-    x_frames_train = frames(train_dataset["x"], train_dataset["y"], frame_size, nb_train_frames)
-    x_frames_test = frames(test_dataset["x"], test_dataset["y"], frame_size, nb_test_frames)
+    x_frames_train = frames(train_dataset["x"], frame_size)
+    x_frames_test = frames(test_dataset["x"], frame_size)
 
     def rocket_pre_shape(x):
         return x.reshape((1, len(x)))
@@ -76,7 +85,8 @@ def AE_features_extractor(train_dataset,test_dataset,frame_size,hyperparameters=
 
     from offline_strategies.AEC import default_hyperparameters, AE
     hp = default_hyperparameters()
-    hp["nb_layers"] = 2
+    hp["nb_layers"]=2
+    #hp["batch_size"]=64
     hp.update(hyperparameters)
 
     model = AE(hp)
@@ -87,8 +97,8 @@ def AE_features_extractor(train_dataset,test_dataset,frame_size,hyperparameters=
     # re-centering
     mu = np.mean(x_frames_train)
     std = np.std(x_frames_train)
-    x_frames_train = (x_frames_train - mu) / std
-    x_frames_test = (x_frames_test - mu) / std
+    x_frames_train = (x_frames_train - mu) / (std+1e-7)
+    x_frames_test = (x_frames_test - mu) / (std+1e-7)
     return x_frames_train,x_frames_test
 
 def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier":10}):
@@ -98,7 +108,7 @@ def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier"
     y_test=test_dataset["y"]
     nb_wanted_frames=get_nb_frames(x_train,frame_size)*hyperparameters["multiplier"]
     x_frames_train, train_dataset["y"] = data_augment_frames(x_train, y_train, frame_size, nb_wanted_frames)
-    x_frames_test = frames(x_test, y_test, frame_size)
+    x_frames_test = frames(x_test, frame_size)
     return x_frames_train, x_frames_test
 
 

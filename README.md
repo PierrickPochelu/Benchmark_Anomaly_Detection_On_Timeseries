@@ -100,12 +100,10 @@ if __name__=="__main__":
 ```
 produces:
 ```
-
-AE IFOREST {'time': 3307.888, 'tp': 6825, 'tn': 163323, 'fp': 27891, 'fn': 16106, 'f1': 0.287}
-
-IDENTITY  stats: {'tn': 2866, 'fp': 30, 'fn': 310, 'tp': 95, 'f1': 0.3585}
-ROCKET  stats: {'tn': 2652, 'fp': 244, 'fn': 379, 'tp': 26, 'f1': 0.077}
-DATAAUG  stats: {'tn': 2886, 'fp': 10, 'fn': 314, 'tp': 91, 'f1': 0.3597}
+IDENTITY IFOREST {'time': 33.986, 'tp': 7928, 'tn': 157209, 'fp': 34005, 'fn': 15003, 'f1': 0.2964}
+AE IFOREST {'time': 2856.494, 'tp': 7124, 'tn': 161476, 'fp': 29738, 'fn': 15807, 'f1': 0.2918}
+ROCKET IFOREST {'time': 176.478, 'tp': 7557, 'tn': 163776, 'fp': 27438, 'fn': 15374, 'f1': 0.33}
+DATAAUG IFOREST {'time': 123.847, 'tp': 6239, 'tn': 170956, 'fp': 20258, 'fn': 16692, 'f1': 0.281}
 ```
 
 ** Conclusion: AE is more accurate but at the cost of significant training time. DATAAUG produces hardly small improvement and require a lot of tuning: (choice of noise kinds, probability of the noise, amplitude of the noises...). Indeed, no feature extractor (identity) is a robust, simple and fast strategy.**
@@ -152,7 +150,7 @@ The lines
 ## LARGE-SCALE INSIGHT
 I take the simple and fast strategy consisting in applying Isolation Forest on the standardized signal. I plot below the timeseries, the detection and the labels.
 
-![Large-scale anomaly detection](./media/iDENTITY_AE_mosaic.png)
+![Large-scale anomaly detection](./media/IDENTITY_AE_mosaic.png)
 
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
