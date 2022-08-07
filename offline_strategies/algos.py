@@ -33,26 +33,23 @@ def elliptic_envelope(x_train_frames, x_test_frames):
     model.fit(x_train_frames)
     return sklearn_post_process(model,x_train_frames, x_test_frames)
 
-def AE_reconstruction(x_train_frames, x_test_frames,hyperparameters={}):
-    from offline_strategies.AEC import default_hyperparameters,AE
-    hp=default_hyperparameters()
-    hp["nb_layers"]=4
-    hp.update(hyperparameters)
-    model=AE(hp)
+def _AE_reconstruction(deeplearning_techno, x_train_frames, x_test_frames, hyperparameters={}):
+    from offline_strategies.autoencoder import AE
+    model = AE(deeplearning_techno, hyperparameters)
     model.fit(x_train_frames)
-    x_test_pred=model.predict(x_test_frames)
+    x_test_pred = model.predict(x_test_frames)
     del model
-    return x_test_pred #return problities and not boolean values
+    return x_test_pred  # return problities and not boolean values
+
+def conv_AE_reconstruction(x_train_frames, x_test_frames, hyperparameters={}):
+    return _AE_reconstruction("CONV_AE", x_train_frames, x_test_frames, hyperparameters)
+def LSTM_AE_reconstruction(x_train_frames, x_test_frames,hyperparameters={}):
+    return _AE_reconstruction("LSTM_AE", x_train_frames, x_test_frames, hyperparameters)
+def dense_AE_reconstruction(x_train_frames, x_test_frames,hyperparameters={}):
+    return _AE_reconstruction("DENSE_AE", x_train_frames, x_test_frames, hyperparameters)
 
 
 
-
-def offline_AD_strategy(strat_name):
-    strategies={"AE":AE_reconstruction,
-                "ELLIPTIC":elliptic_envelope,
-                "ONESVM":oneclass_svm,
-                "IFOREST":isolation_forest}
-    return strategies[strat_name]
 
 
 if __name__=="__main__":
@@ -71,5 +68,6 @@ if __name__=="__main__":
 
     y=np.array([0,0,0,0,0,0,0,1,0,0])
 
-    test_rings=elliptic_envelope(x_train_frames,x_test_frames)
+    test_rings=LSTM_AE_reconstruction(x_train_frames,x_test_frames,{})
+    #test_rings=elliptic_envelope(x_train_frames,x_test_frames)
     print(test_rings)

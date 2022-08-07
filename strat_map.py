@@ -1,20 +1,28 @@
 # When a new algorithm is implemented do not forget to update this file
 from realtime_strategies.algos import CADKNN,RE,Numenta,OSE
-from offline_strategies.algos import oneclass_svm,isolation_forest,elliptic_envelope,AE_reconstruction
-from offline_strategies.from_signal_to_frames import AE_features_extractor, ROCKET, DATAAUG, IDENTITY
+from offline_strategies.algos import oneclass_svm,isolation_forest,elliptic_envelope
+from offline_strategies.algos import conv_AE_reconstruction,LSTM_AE_reconstruction,dense_AE_reconstruction
+from offline_strategies.from_signal_to_frames import ROCKET, DATAAUG, IDENTITY
+from offline_strategies.from_signal_to_frames import conv_AE_FE,LSTM_AE_FE,dense_AE_FE
 
 detector_strat_map={"RE":(RE,True),
            "CADKNN":(CADKNN,True),
            "ARTIME":(Numenta,True),
            "OSE":(OSE,True),
-           "AE": (AE_reconstruction,False),
+
            "ELLIPTIC": (elliptic_envelope,False),
            "ONESVM": (oneclass_svm,False),
-           "IFOREST": (isolation_forest,False)
+           "IFOREST": (isolation_forest,False),
+
+            "LSTM_AE":(LSTM_AE_reconstruction,False),
+            "CONV_AE": (conv_AE_reconstruction, False),
+            "DENSE_AE": (dense_AE_reconstruction, False)
            }
 
 feature_extractor_strat_map={
-    "AE":AE_features_extractor,
+    "CONV_AE":conv_AE_FE,
+    "LSTM_AE": LSTM_AE_FE,
+    "DENSE_AE":dense_AE_FE,
     "ROCKET":ROCKET,
     "DATAAUG":DATAAUG,
     "IDENTITY":IDENTITY

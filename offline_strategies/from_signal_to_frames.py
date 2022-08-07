@@ -76,20 +76,15 @@ def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels":
     rocket_x_frames_train = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_train])
     rocket_x_frames_test = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_test])
     return rocket_x_frames_train, rocket_x_frames_test
-def AE_features_extractor(train_dataset,test_dataset,frame_size,hyperparameters={}):
+def _AE_FE(deeplearning_techno, train_dataset,test_dataset,frame_size,hyperparameters={}):
 
     x_frames_train, x_frames_test = IDENTITY(train_dataset,test_dataset,frame_size)
 
     nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
     nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
 
-    from offline_strategies.AEC import default_hyperparameters, AE
-    hp = default_hyperparameters()
-    hp["nb_layers"]=2
-    #hp["batch_size"]=64
-    hp.update(hyperparameters)
-
-    model = AE(hp)
+    from offline_strategies.autoencoder import AE
+    model = AE(deeplearning_techno,hyperparameters)
     model.fit(x_frames_train)
     x_frames_train = model.features_extractor(x_frames_train).squeeze()
     x_frames_test = model.features_extractor(x_frames_test).squeeze()
@@ -100,6 +95,13 @@ def AE_features_extractor(train_dataset,test_dataset,frame_size,hyperparameters=
     x_frames_train = (x_frames_train - mu) / (std+1e-7)
     x_frames_test = (x_frames_test - mu) / (std+1e-7)
     return x_frames_train,x_frames_test
+
+def conv_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={"nb_layers":2}):
+    return _AE_FE("CONV_AE", train_dataset,test_dataset,frame_size,hyperparameters)
+def LSTM_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    return _AE_FE("LSTM_AE", train_dataset,test_dataset,frame_size,hyperparameters)
+def dense_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    return _AE_FE("DENSE_AE", train_dataset,test_dataset,frame_size,hyperparameters)
 
 def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier":10}):
     x_train=train_dataset["x"]

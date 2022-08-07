@@ -39,9 +39,9 @@ To compare multiple workflows at scale on many time series I design this workflo
 ![Big picture of the workflow](media/workflow.png)
 
 Methods used:
-- Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("AE"), or no one ("IDENTITY").
+- Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("DENSE_AE","CONV_AE","LSTM_AE"), or no one ("IDENTITY").
 - Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), Conformal Anomaly Detector K-NN [^3] ("CADKNN"), x ("OSE"), Relative Entropy ("RE").
-- Offline detectors: Autocoender with loss reconstruction ("AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
+- Offline detectors: Autocoender with loss reconstruction ("DENSE_AE","CONV_AE","LSTM_AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
 
 
 [^1]: "ROCKET: Exceptionally fast and accurate time series classification using random convolutional kernels", A. Dempster,  Data Mining and Knowledge Discovery 2020,  https://doi.org/10.1007/s10618-020-00701-z
@@ -50,7 +50,7 @@ Methods used:
 [^4]: "Isolation forest", ICDM 2008, F. T. Liu, https://doi.org/10.1109/ICDM.2008.17
 
 
-Notice: autoencoders are used in two different ways and require different hyperparameters. For features extraction, we use 5 conv. layers, and the detector 9 conv. layers.
+Notice: all methods have been (hyper-)parametrized either re-using commonly used values or by doing myself some preliminary experiments
 
 Frameworks used:
 - tsaug [relevant doc page here](https://tsaug.readthedocs.io/en/stable/notebook/Examples%20of%20augmenters.html):  data augmentation for time series. It includes diverse kinds of noise: speed shift, gaussian multiplicative noise on each value,...
@@ -127,7 +127,6 @@ if __name__=="__main__":
     feature_extractor="IDENTITY"
 
     for detector in detector_strat_map.keys(): # for each known detection strategy
-        print("Compute the mosaic with the strategy: ", detector)
         results=LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor,detector,datasets)
         print(feature_extractor, detector, results)
 ```
@@ -141,6 +140,7 @@ IDENTITY IFOREST {'time': 33.986, 'tp': 7928, 'tn': 157209, 'fp': 34005, 'fn': 1
 IDENTITY ONESVM {'time': 25.76, 'tp': 13101, 'tn': 78298, 'fp': 112916, 'fn': 9830, 'f1': 0.2249}
 IDENTITY ELLIPTIC {'time': 673.583, 'tp': 6967, 'tn': 167652, 'fp': 23562, 'fn': 15964, 'f1': 0.2921}
 IDENTITY AE {'time': 3394.014, 'tp': 10083, 'tn': 147247, 'fp': 43967, 'fn': 12848, 'f1': 0.3396}
+IDENTITY LSTM_AE {'time': 4575.304, 'tp': 9445, 'tn': 152804, 'fp': 38410, 'fn': 13486, 'f1': 0.3365}
 ```
 
 **Autoencoders is the most accurate at the cost of longer runtime. Isolation Forest is a g ood tradeof between accuracy and speed. The real-time strategies are less accurate than offline ones. This is why I am investigating further the offline ones.**
@@ -150,7 +150,7 @@ The lines
 ## LARGE-SCALE INSIGHT
 I take the simple and fast strategy consisting in applying Isolation Forest on the standardized signal. I plot below the timeseries, the detection and the labels.
 
-![Large-scale anomaly detection](./media/IDENTITY_AE_mosaic.png)
+![Large-scale anomaly detection](./media/IDENTITY_CONV_AE_mosaic.png)
 
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
@@ -162,3 +162,6 @@ Legend:
 - orange: False positive error
 
 **The margin for improvement is obvious. On the majority of time series it is better than random, on some others, the method performs equally to random (everything tagged as non-anomaly).**
+
+# STAY TUNED
+I am actively developing this project. In next days new datasets (e.g., sound processing), new features extractors, and new detectors will be added... New large scale benchmarks to evaluate all those methods will be shown.

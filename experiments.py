@@ -28,7 +28,7 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
                                      )
             if stat is not None:
                 # Monitor
-                #print(dataset_name, " stats:", stat)
+                print(dataset_name, " stats:", stat)
                 name = dataset_name.replace(os.sep, "_").split(".")[0] + "_isolation_forest"
                 path = os.path.join("tmp", name + ".png")
 
@@ -52,7 +52,6 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
 
     # display it
     experimental_resut={"time":enlapsed_time, "tp":tp, "tn":tn, "fp":fp, "fn":fn, "f1":mean_f1_scores}
-
     mosaic_name=f"{feature_extractor_name}_{detector_name}_mosaic.png"
     mosaic_path=os.path.join(media_dir,mosaic_name)
     mosaic(paths_for_mosaic, mosaic_path, experimental_resut)
