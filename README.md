@@ -150,14 +150,14 @@ IDENTITY DENSE_AE {'time': 1266.93, 'tp': 11133, 'tn': 142505, 'fp': 48709, 'fn'
 The lines 
 
 ## LARGE-SCALE INSIGHT
-I take the simple and fast strategy consisting in applying Isolation Forest on the standardized signal. I plot below the timeseries, the detection and the labels.
+Below I plot IDENTITY_DENSE_AE strategy predictions, timeseries and labels.
 
-![Large-scale anomaly detection](./media/IDENTITY_CONV_AE_mosaic.png)
+![Large-scale anomaly detection](./media/IDENTITY_DENSE_AE_mosaic.png)
 
 Click on it for a better view: time series name, F1-score, and detection/ground truth.
 
 Legend:
-- grey: training split
+- grey: anomaly-free training split
 - no color: True negative
 - green: True positive
 - red: False negative error
