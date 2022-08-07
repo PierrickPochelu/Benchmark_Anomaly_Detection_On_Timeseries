@@ -230,6 +230,21 @@ class AE:
             probabilities[i]=_from_loss_to_proba(l, rescaled_thresh)
         return probabilities
 
+    def features_extractor(self,x_frames):
+        assert(self.model is not None)
+        assert(self.threshold is not None)
+        fe=keras.Model(self.input_tensor, self.features_tensor)
+        features=fe.predict(x_frames,verbose=0)
+
+        if len(features.shape)==3: #the nominal case
+            newshape=(features.shape[0],features.shape[1]*features.shape[2])
+        elif len(features.shape)==2:
+            newshape=(features.shape[0],features.shape[1])
+        else:
+            raise ValueError("Error in features_extractor(). Unexpected features vector shape")
+
+        features=np.reshape(features,newshape=newshape)
+        return features
 
     def __del__(self):
         try:
