@@ -1,4 +1,4 @@
-
+"""
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 config = ConfigProto()
@@ -155,3 +155,4 @@ class AE:
         except:
             pass
 
+"""

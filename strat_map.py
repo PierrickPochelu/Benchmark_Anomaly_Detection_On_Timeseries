@@ -1,5 +1,5 @@
 # When a new algorithm is implemented do not forget to update this file
-from realtime_strategies.algos import CADKNN,RE,Numenta,OSE
+from realtime_strategies.algos import CADKNN,RE,Numenta,OSE,stump
 from offline_strategies.algos import oneclass_svm,isolation_forest,elliptic_envelope
 from offline_strategies.algos import conv_AE_reconstruction,LSTM_AE_reconstruction,dense_AE_reconstruction
 from offline_strategies.from_signal_to_frames import ROCKET, DATAAUG, IDENTITY
@@ -9,6 +9,7 @@ detector_strat_map={"RE":(RE,True),
            "CADKNN":(CADKNN,True),
            "ARTIME":(Numenta,True),
            "OSE":(OSE,True),
+            "STUMP":(stump,True),
 
            "ELLIPTIC": (elliptic_envelope,False),
            "ONESVM": (oneclass_svm,False),

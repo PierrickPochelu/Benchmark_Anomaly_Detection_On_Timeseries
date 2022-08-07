@@ -163,6 +163,32 @@ def CADKNN(train_dataset, test_dataset, hyperparameters={}):
     return predict_with_strat(algo, test_dataset)
 
 
+def stump(train_dataset, test_dataset,hyperparameters={"w":128,"quantile":0.9}):
+    import stumpy
+    from stumpy import stumpi
+    mp=stumpi(train_dataset["x"],hyperparameters["w"],egress=False)
+    for x in test_dataset["x"]:
+        mp.update(x)
+
+    # extract distances and thresh
+    distances=mp.left_P_
+
+
+    # offset training distances
+    training_distances=distances[:len(train_dataset["x"])]
+    training_distances=training_distances[hyperparameters["w"]//2:]
+
+    testing_distances=distances[-1*len(test_dataset["x"]):]
+
+    from offline_strategies.autoencoder import _from_loss_to_proba
+    min=np.min(training_distances)
+    max=np.max(training_distances)
+    thresh=np.quantile(training_distances,hyperparameters["quantile"])
+    proba=_from_loss_to_proba(testing_distances,thresh,min,max)
+    assert(len(proba)==len(test_dataset["x"]))
+
+
+    return proba
 
 
 

@@ -40,7 +40,7 @@ To compare multiple workflows at scale on many time series I design this workflo
 
 Methods used:
 - Features extractor may include: data augmentation (keyword: "DATAAUG"), ROCKET [^1] ("ROCKET"), autoencoder compression ("DENSE_AE","CONV_AE","LSTM_AE"), or no one ("IDENTITY").
-- Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), Conformal Anomaly Detector K-NN [^3] ("CADKNN"), x ("OSE"), Relative Entropy ("RE").
+- Realtime detectors:  Adaptive Resonance [^2] ("ARTIME"), Conformal Anomaly Detector K-NN [^3] ("CADKNN"), x ("OSE"), Relative Entropy ("RE"), STUMP ("STUMP")
 - Offline detectors: Autocoender with loss reconstruction ("DENSE_AE","CONV_AE","LSTM_AE"), IsolationForest [^4] ("IFOREST"), One-class SVM ("ONESVM"), EllipticEnvelope ("ELLIPTIC").
 
 
@@ -48,7 +48,7 @@ Methods used:
 [^2]: "Unsupervised real-time anomaly detection for streaming data", S. Ahmada et al., Neurocomputing 2017, https://doi.org/10.1016/j.neucom.2017.04.070 
 [^3]: "Conformal k-NN Anomaly Detector for Univariate Data Streams", V. Ishimtsev et al., PMLR 2017, http://proceedings.mlr.press/v60/ishimtsev17a/ishimtsev17a.pdf
 [^4]: "Isolation forest", ICDM 2008, F. T. Liu, https://doi.org/10.1109/ICDM.2008.17
-
+[^5]: "STUMP", S.M. Law,2019, Journal of Open Source Software, 2019
 
 Notice: all methods have been (hyper-)parametrized either re-using commonly used values or by doing myself some preliminary experiments
 
@@ -58,7 +58,7 @@ Frameworks used:
 - scikit-learn [relevant doc page here](https://scikit-learn.org/stable/modules/outlier_detection.html): (non-deep) Machine Learning offline anomaly detectors: One-class SVM, Isolation Forest, Elliptic Envelope...
 - numenta [github here](https://github.com/numenta/NAB): Realtime anomaly detection. It implements recent methods such as ARTime.
 - tensorflow2.9 [relevant doc page here](https://keras.io/examples/timeseries/timeseries_anomaly_detection/): Autoencoder for detecting anomaly based on loss reconstruction, or Autoencoder for extract features.
-
+- stumpy
 
 # DATASETS
 The time series are included in this github in ./data/NAB/. Official link is: https://github.com/numenta/NAB/tree/master/data
@@ -81,11 +81,7 @@ To analyse a result and compare fairly multiple pipelines it is required to eval
 
 ## Comparing different features extractors
 
-I compare a few implemented features extractor with a commonly used detector: IsolationForest. The tested features extraction strategy are:
-* The raw normed signal (key-word: "IDENTITY") rocket and 
-* Features extracted from an autoencoder ("AE")
-* ROCKET algorithm, see ref. below ("ROCKET"")
-* Data-augmented raw normed signal ("DATAAUG")
+I compare a few implemented features extractor with a commonly used detector: IsolationForest for its speed and predictions quality.
 
 ```python
 from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
@@ -101,9 +97,11 @@ if __name__=="__main__":
 produces:
 ```
 IDENTITY IFOREST {'time': 33.986, 'tp': 7928, 'tn': 157209, 'fp': 34005, 'fn': 15003, 'f1': 0.2964}
-AE IFOREST {'time': 2856.494, 'tp': 7124, 'tn': 161476, 'fp': 29738, 'fn': 15807, 'f1': 0.2918}
 ROCKET IFOREST {'time': 176.478, 'tp': 7557, 'tn': 163776, 'fp': 27438, 'fn': 15374, 'f1': 0.33}
 DATAAUG IFOREST {'time': 123.847, 'tp': 6239, 'tn': 170956, 'fp': 20258, 'fn': 16692, 'f1': 0.281}
+CONV_AE IFOREST {'time': 2856.494, 'tp': 7124, 'tn': 161476, 'fp': 29738, 'fn': 15807, 'f1': 0.2918}
+DENSE_AE IFOREST {'time': 1775.215, 'tp': 8126, 'tn': 155902, 'fp': 35312, 'fn': 14802, 'f1': 0.3044}
+LSTM_AE IFOREST {'time': 2545.714, 'tp': 4492, 'tn': 176413, 'fp': 14801, 'fn': 18439, 'f1': 0.2622}
 ```
 
 ** Conclusion: AE is more accurate but at the cost of significant training time. DATAAUG produces hardly small improvement and require a lot of tuning: (choice of noise kinds, probability of the noise, amplitude of the noises...). Indeed, no feature extractor (identity) is a robust, simple and fast strategy.**
@@ -136,11 +134,15 @@ IDENTITY RE {'time': 141.267, 'tp': 878, 'tn': 194490, 'fp': 2714, 'fn': 22540, 
 IDENTITY CADKNN {'time': 1783.387, 'tp': 14517, 'tn': 110398, 'fp': 86806, 'fn': 8901, 'f1': 0.2673}
 IDENTITY ARTIME {'time': 81.399, 'tp': 122, 'tn': 197014, 'fp': 190, 'fn': 23296, 'f1': 0.1119}
 IDENTITY OSE {'time': 3017.315, 'tp': 5986, 'tn': 169234, 'fp': 27970, 'fn': 17432, 'f1': 0.1947}
+IDENTITY STUMP {'time': 114.7, 'tp': 1873, 'tn': 190624, 'fp': 6580, 'fn': 21545, 'f1': 0.1502}
 IDENTITY IFOREST {'time': 33.986, 'tp': 7928, 'tn': 157209, 'fp': 34005, 'fn': 15003, 'f1': 0.2964}
 IDENTITY ONESVM {'time': 25.76, 'tp': 13101, 'tn': 78298, 'fp': 112916, 'fn': 9830, 'f1': 0.2249}
 IDENTITY ELLIPTIC {'time': 673.583, 'tp': 6967, 'tn': 167652, 'fp': 23562, 'fn': 15964, 'f1': 0.2921}
-IDENTITY AE {'time': 3394.014, 'tp': 10083, 'tn': 147247, 'fp': 43967, 'fn': 12848, 'f1': 0.3396}
+
+deep learning approaches:
+IDENTITY CONV_AE {'time': 3394.014, 'tp': 10083, 'tn': 147247, 'fp': 43967, 'fn': 12848, 'f1': 0.3396}
 IDENTITY LSTM_AE {'time': 4575.304, 'tp': 9445, 'tn': 152804, 'fp': 38410, 'fn': 13486, 'f1': 0.3365}
+IDENTITY DENSE_AE {'time': 1266.93, 'tp': 11133, 'tn': 142505, 'fp': 48709, 'fn': 11798, 'f1': 0.3336}
 ```
 
 **Autoencoders is the most accurate at the cost of longer runtime. Isolation Forest is a g ood tradeof between accuracy and speed. The real-time strategies are less accurate than offline ones. This is why I am investigating further the offline ones.**

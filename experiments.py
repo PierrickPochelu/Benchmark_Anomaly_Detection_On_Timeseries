@@ -17,6 +17,8 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
     paths_for_mosaic=[] # we will build a beautiful mosaic
     stats_for_mosaic=[]
     for dataset_name, dataset in datasets.items():
+            name = dataset_name.replace(os.sep, "_").split(".")[0] + "_"+detector_name
+            path = os.path.join("tmp", name + ".png")
             stat,details=EXPERIMENT(dataset,
                                      dataset_name,
                                      train_test_split_rate=0.15,
@@ -26,12 +28,11 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name, detector_name, datasets)
                                      AD_strategies_name=detector_name,
                                      proba_thresh=0.5
                                      )
+
+
             if stat is not None:
                 # Monitor
                 print(dataset_name, " stats:", stat)
-                name = dataset_name.replace(os.sep, "_").split(".")[0] + "_isolation_forest"
-                path = os.path.join("tmp", name + ".png")
-
                 paths_for_mosaic.append(path)
                 stats_for_mosaic.append(stat)
                 txt = name + "\nF1-score:" + str(stat["f1"])

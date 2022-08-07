@@ -25,7 +25,7 @@ def default_conv_hyperparameters():
             "init_filters": 32, "dropout_rate":0.2, "lr":0.001, "nb_layers":4,
             "batch_size":128,"l2_reg":0.001,"percentile":0.999,"epochs":1000}
 
-def _from_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
+def _from_standardized_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
     try:
         # check
         assert (1. >= rescaled_reconstruction_loss >= 0.)
@@ -44,6 +44,15 @@ def _from_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
 
     reconstruction_proba=np.clip(reconstruction_proba,0,1)
     return reconstruction_proba
+
+def _from_loss_to_proba(raw_reconstruction_loss,raw_threshold, min_train, max_train):
+    rescaled_thresh = (raw_threshold - min_train) / (max_train - min_train)
+    rescaled_reconstruction_loss = ((raw_reconstruction_loss - min_train) / (max_train - min_train))
+    rescaled_reconstruction_loss = np.clip(rescaled_reconstruction_loss, 0, 1)
+    probabilities = np.zeros((len(rescaled_reconstruction_loss),))
+    for i, l in enumerate(rescaled_reconstruction_loss):
+        probabilities[i] = _from_standardized_loss_to_proba(l, rescaled_thresh)
+    return probabilities
 
 def LSTM_AE_keras(x,X_train,hyperparameters):
     # Dimensions are write before each line break. The batch_size dims is ignored for visibility purpose
@@ -221,13 +230,7 @@ class AE:
 
         reconstruction_loss = np.mean(np.abs(x_frames_pred - x_frames), axis=1)
 
-        rescaled_thresh=(self.threshold-self.min)/(self.max-self.min)
-        rescaled_reconstruction_loss=((reconstruction_loss-self.min)/(self.max-self.min))
-        rescaled_reconstruction_loss=np.clip(rescaled_reconstruction_loss,0,1)
-
-        probabilities=np.zeros((len(rescaled_reconstruction_loss),))
-        for i,l in enumerate(rescaled_reconstruction_loss):
-            probabilities[i]=_from_loss_to_proba(l, rescaled_thresh)
+        probabilities=_from_loss_to_proba(reconstruction_loss,self.threshold,self.min,self.max)
         return probabilities
 
     def features_extractor(self,x_frames):
@@ -244,6 +247,10 @@ class AE:
             raise ValueError("Error in features_extractor(). Unexpected features vector shape")
 
         features=np.reshape(features,newshape=newshape)
+
+        # handle nan values to be more robust
+        features[np.isnan(features)]=0.
+
         return features
 
     def __del__(self):
