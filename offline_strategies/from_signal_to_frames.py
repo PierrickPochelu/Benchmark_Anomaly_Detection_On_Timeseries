@@ -16,7 +16,7 @@ def frames(x,frame_size):
 
 def get_nb_frames(x,frame_size):
     return len(x) - frame_size + 1
-def data_augment_frames(x, y, frame_size, nb_frames):
+def _data_augment_frames(x, y, frame_size, nb_frames):
     from tsaug import TimeWarp, Crop, Quantize, Drift, AddNoise
 
     """
@@ -45,17 +45,20 @@ def data_augment_frames(x, y, frame_size, nb_frames):
     return X_aug,Y_aug
 
 
+def NONFRAMED(train_dataset,test_dataset,frame_size=None,hyperparameters=0):
+    return train_dataset,test_dataset
 
-def IDENTITY(train_dataset,test_dataset,frame_size,hyperparameters={}):
+
+
+def FRAMED(train_dataset, test_dataset, frame_size, hyperparameters={}):
     x_frames_train = frames(train_dataset["x"], frame_size)
     x_frames_test = frames(test_dataset["x"], frame_size)
-    return x_frames_train, x_frames_test
+    train_dataset["x"]=x_frames_train
+    test_dataset["x"]=x_frames_test
+    return train_dataset, test_dataset
 def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels": 128, "kernel_sizes": [7, 9, 11]}):
-    # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
-    nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
-    nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
-    x_frames_train = frames(train_dataset["x"], frame_size)
-    x_frames_test = frames(test_dataset["x"], frame_size)
+    # https://pyts.readthedocs.io/en/stable/modules/transformation.html
+    from pyts.transformation import ROCKET as pyts_ROCKET
 
     def rocket_pre_shape(x):
         return x.reshape((1, len(x)))
@@ -64,24 +67,26 @@ def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels":
         x = x.T
         return x.squeeze()
 
-    # https://pyts.readthedocs.io/en/stable/modules/transformation.html
-    from pyts.transformation import ROCKET
     def ROCKET_transform(hyperparameters: dict, frame: np.ndarray) -> np.ndarray:
-        model = ROCKET(**hyperparameters)
+        model = pyts_ROCKET(**hyperparameters)
         pre_frame = rocket_pre_shape(frame)
         features_extracted_frame = model.fit_transform(pre_frame)
         post_frame = rocket_post_shape(features_extracted_frame)
         return post_frame
 
+    # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
+    x_frames_train = frames(train_dataset["x"], frame_size)
+    x_frames_test = frames(test_dataset["x"], frame_size)
+
     rocket_x_frames_train = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_train])
     rocket_x_frames_test = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_test])
-    return rocket_x_frames_train, rocket_x_frames_test
+
+    train_dataset["x"]=rocket_x_frames_train
+    test_dataset["x"]=rocket_x_frames_test
+    return train_dataset, test_dataset
 def _AE_FE(deeplearning_techno, train_dataset,test_dataset,frame_size,hyperparameters={}):
 
-    x_frames_train, x_frames_test = IDENTITY(train_dataset,test_dataset,frame_size)
-
-    nb_train_frames=get_nb_frames(train_dataset["x"],frame_size)
-    nb_test_frames=get_nb_frames(test_dataset["x"],frame_size)
+    x_frames_train, x_frames_test = FRAMED(train_dataset, test_dataset, frame_size)
 
     from offline_strategies.autoencoder import AE
     model = AE(deeplearning_techno,hyperparameters)
@@ -94,7 +99,11 @@ def _AE_FE(deeplearning_techno, train_dataset,test_dataset,frame_size,hyperparam
     std = np.std(x_frames_train)
     x_frames_train = (x_frames_train - mu) / (std+1e-7)
     x_frames_test = (x_frames_test - mu) / (std+1e-7)
-    return x_frames_train,x_frames_test
+
+    # replace train and test data
+    train_dataset["x"]=x_frames_train
+    test_dataset["x"]=x_frames_test
+    return train_dataset,test_dataset
 
 def conv_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={"nb_layers":2}):
     return _AE_FE("CONV_AE", train_dataset,test_dataset,frame_size,hyperparameters)
@@ -109,10 +118,44 @@ def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier"
     x_test=test_dataset["x"]
     y_test=test_dataset["y"]
     nb_wanted_frames=get_nb_frames(x_train,frame_size)*hyperparameters["multiplier"]
-    x_frames_train, train_dataset["y"] = data_augment_frames(x_train, y_train, frame_size, nb_wanted_frames)
-    x_frames_test = frames(x_test, frame_size)
-    return x_frames_train, x_frames_test
+    train_dataset["x"], train_dataset["y"] = _data_augment_frames(x_train, y_train, frame_size, nb_wanted_frames)
+    test_dataset["x"] = frames(x_test, frame_size)
+    return train_dataset, test_dataset
 
+def _from_signal_to_logmelspectrogram(signal:np.ndarray, hyperparameters:dict):
+    import librosa
+    n_mels = hyperparameters["n_mels"]
+    hop_length = hyperparameters["hop_length"]
+    sampling_rate = hyperparameters["sampling_rate"]
+    n_fft = 1024
+    power = 2.
+    # generate melspectrogram using librosa
+    mel_spectrogram = librosa.feature.melspectrogram(y=signal, sr=sampling_rate,
+                                                     n_fft=n_fft,
+                                                     hop_length=hop_length,  # 1hop=1column in the spectrogram
+                                                     n_mels=n_mels,
+                                                     power=power)
+
+    log_mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
+    return log_mel_spectrogram.T
+def LOGMELSPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}):
+    train_dataset["x"] = _from_signal_to_logmelspectrogram(train_dataset["x"],hyperparameters)
+    test_dataset["x"] = _from_signal_to_logmelspectrogram(test_dataset["x"],hyperparameters)
+    # "x" is 2D (spectral,temporal)
+    train_dataset, test_dataset=FRAMED(train_dataset,test_dataset,frame_size,hyperparameters)
+
+    for i in range(len(train_dataset["x"])):
+        train_dataset["x"][i]=train_dataset["x"][i].flatten()
+    for i in range(len(test_dataset["x"])):
+        test_dataset["x"][i]=test_dataset["x"][i].flatten()
+
+    return train_dataset, test_dataset
+
+def SPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}):
+    train_dataset["x"] = _from_signal_to_logmelspectrogram(train_dataset["x"],hyperparameters)
+    test_dataset["x"] = _from_signal_to_logmelspectrogram(test_dataset["x"],hyperparameters)
+    train_dataset, test_dataset=FRAMED(train_dataset,test_dataset,frame_size,hyperparameters)
+    return train_dataset, test_dataset
 
 
 

@@ -30,7 +30,16 @@ def confusion_matrix_and_F1(y_pred,y_true):
 
 def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred:np.ndarray, frame_size:int,
                 path:Optional[str]=None, txt:str= ""):
-    x=np.concatenate((x_train,x_test))
+
+    x_test=x_test[frame_size-1:]
+    if len(x_train.shape)==2:
+        x=np.concatenate((
+            np.concatenate((x_train[:,0],x_train[1,1:])),
+            np.concatenate((x_test[:,0],x_test[1,1:])),))
+    elif len(x_train.shape)==1:
+        x=np.concatenate((x_train,x_test))
+    else:
+        raise ValueError("plot_curves() error in the number of received dimensions")
 
     non_prediction_area=frame_size-1
 
@@ -40,8 +49,12 @@ def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred
     y=np.concatenate((y_train_offset,y_test))
     y_pred=np.concatenate((y_non_pred_area,y_pred))
 
-    assert(len(x)==len(y)==len(y_pred))
-
+    try:
+        assert(len(x)==len(y)==len(y_pred))
+    except AssertionError as e:
+        print(len(x))
+        print(len(y))
+        print(len(y_pred))
     # plot curve
     plt.plot(np.arange(0,len(x)),x)
 
