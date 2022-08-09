@@ -1,4 +1,4 @@
-This repo aims to compare different recent anomaly detection methods.
+This repo aims to compare different recent unsupervised anomaly detection methods on timeseries.
 
 Typical anomaly detection algorithms are calibrated on anomaly-free historical data samples and used on the remainder of the time series where we are looking for anomalies. Two main approaches are evaluated: real-time anomaly detection and offline anomaly detection. Only univariate anomaly detection with unsupervised learning is evaluated here.
 
@@ -21,12 +21,12 @@ model.fit(X_train_frames) # we can iterate on "fit" method to improve the model
 anomaly_detection=model.predict(X_test_frames)
 ```
 
-**Realtime time series anomaly detections** consist in predicting incoming one-by-one values. They are especially useful to detect early an error. However, they seem less accurate than offline methods.
+**Realtime time series anomaly detections** consist in predicting incoming one-by-one values. They are especially useful to detect early an error. However, they seem less accurate than offline methods. The code below is an example of their API.
 ```python
-hyperparameters={"n_estimator":128}
-from sklearn.ensemble import IsolationForest
+hyperparameters={"N_bins":5}
+from nab.detectors.relative_entropy.relative_entropy_detector import RelativeEntropyDetector
 # We don't need to iterate on the training phase. It is common to give training samples to the constructor.
-model=IsolationForest(X_train, hyperparameters)
+realtime_algo = RelativeEntropyDetector(dataSet=x_NAB_dataset_train, hyperparameters)
 anomaly_detection=[]
 for v in gen_X_test(): #generator producing 1-per-1 test value
 	a=model.predict(v)
