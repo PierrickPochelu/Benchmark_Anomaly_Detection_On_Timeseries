@@ -23,12 +23,12 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
     # NORMALIZE: strategies: STD
     train_datasets_generator = read_and_prepare_dataset(data_prep_info) #/!\ MEMORY CONSUMPTION. TODO a generator would be more memory efficient
 
-    dataset_name=data_prep_info["name"]
+    datasets_name=data_prep_info["name"]
 
     paths_for_mosaic=[] # we will build a beautiful mosaic
     stats_for_mosaic=[]
     for train_dataset,test_dataset in train_datasets_generator:
-        name = dataset_name.replace(os.sep, "_").split(".")[0] + "_"+detector_name
+        name = datasets_name.replace(os.sep, "_").split(".")[0] + "_"+detector_name
         path = os.path.join("tmp", name + ".png")
         stat,details=EXPERIMENT(train_dataset=train_dataset,
                                 test_dataset=test_dataset,
@@ -37,7 +37,7 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
                                 AD_hyperparameters=AD_hyperparameters,
                                 proba_thresh=0.5)
 
-        print(dataset_name, " stats:", stat)
+        print(datasets_name, " stats:", stat)
         stats_for_mosaic.append(stat)
         if stat is not None and MOSAIC:
             # Monitor
@@ -66,10 +66,10 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
         mosaic_path=os.path.join(media_dir,mosaic_name)
         mosaic(paths_for_mosaic, mosaic_path, experimental_resut)
 
-    # delete cached files used to compute the mosaic
-    for fname in os.listdir(tmp_dir):
-        fpath=os.path.join(tmp_dir,fname)
-        if os.path.exists(fpath):
-            os.remove(fpath)
+        # delete cached files used to compute the mosaic
+        for fname in os.listdir(tmp_dir):
+            fpath=os.path.join(tmp_dir,fname)
+            if os.path.exists(fpath):
+                os.remove(fpath)
     print("ok")
     return experimental_resut

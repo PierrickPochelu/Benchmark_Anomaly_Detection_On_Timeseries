@@ -2,7 +2,7 @@
 from realtime_strategies.algos import CADKNN,RE,Numenta,OSE,stump
 from offline_strategies.algos import oneclass_svm,isolation_forest,elliptic_envelope
 from offline_strategies.algos import conv_AE_reconstruction,LSTM_AE_reconstruction,dense_AE_reconstruction
-from offline_strategies.from_signal_to_frames import ROCKET, DATAAUG, IDENTITY
+from offline_strategies.from_signal_to_frames import ROCKET, DATAAUG, FRAMED, SPECTR, LOGMELSPECTR, NONFRAMED
 from offline_strategies.from_signal_to_frames import conv_AE_FE,LSTM_AE_FE,dense_AE_FE
 
 detector_strat_map={"RE":(RE,True),
@@ -26,5 +26,8 @@ feature_extractor_strat_map={
     "DENSE_AE":dense_AE_FE,
     "ROCKET":ROCKET,
     "DATAAUG":DATAAUG,
-    "IDENTITY":IDENTITY
+    "FRAMED":FRAMED,
+    "NONFRAMED":NONFRAMED,
+    "LOGMELSPECTR":LOGMELSPECTR,
+    "SPECTR":SPECTR
 }

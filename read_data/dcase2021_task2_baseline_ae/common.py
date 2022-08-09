@@ -25,15 +25,17 @@ import librosa.feature
 """
 Standard output is logged in "baseline.log".
 """
-import logging
 
+
+"""
+import logging
 logging.basicConfig(level=logging.DEBUG, filename="baseline.log")
 logger = logging.getLogger(' ')
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-
+"""
 
 ########################################################################
 
@@ -99,7 +101,7 @@ def file_load(wav_name, mono=False):
     try:
         return librosa.load(wav_name, sr=None, mono=mono)
     except:
-        logger.error("file_broken or not exists!! : {}".format(wav_name))
+        print("ERROR: file_broken or not exists!! : {}".format(wav_name))
 
 
 ########################################################################
@@ -174,10 +176,10 @@ def select_dirs(param, mode):
                 load base directory list of eval_data
     """
     if mode:
-        logger.info("load_directory <- development")
+        print("load_directory <- development")
         query = os.path.abspath("{base}/*".format(base=param["dev_directory"]))
     else:
-        logger.info("load_directory <- evaluation")
+        print("load_directory <- evaluation")
         query = os.path.abspath("{base}/*".format(base=param["eval_directory"]))
     dirs = sorted(glob.glob(query))
     dirs = [f for f in dirs if os.path.isdir(f)]
@@ -254,7 +256,7 @@ def file_list_generator(DCASE_path,
     """
 
     if split_name!="train":
-        path=f"{DCASE_path}/{split_name}/{prefix_normal}*.{ext}"
+        path=f"{DCASE_path}/{split_name}/*{prefix_normal}*.{ext}"
         query = os.path.abspath(path)
         normal_files = sorted(glob.glob(query))
         normal_labels = np.zeros(len(normal_files))
@@ -264,9 +266,14 @@ def file_list_generator(DCASE_path,
         anomaly_files = sorted(glob.glob(query))
         anomaly_labels = np.ones(len(anomaly_files))
 
+        # TODO: Interleaved train and test
         files = np.concatenate((normal_files, anomaly_files), axis=0)
         labels = np.concatenate((normal_labels, anomaly_labels), axis=0)
 
+        idx=np.array(range(len(files)))
+        np.random.shuffle(idx)
+        files=files[idx]
+        labels=labels[idx]
     else:
         path = f"{DCASE_path}/{split_name}/*.{ext}"
         query = os.path.abspath(path)
