@@ -11,7 +11,7 @@ def create_sequences(values, frame_size):
     return stacked_frames
 
 def frames(x,frame_size):
-    x=create_sequences(x,frame_size).squeeze()
+    #x=create_sequences(x,frame_size).squeeze()
     return x
 
 def get_nb_frames(x,frame_size):
@@ -75,8 +75,10 @@ def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels":
         return post_frame
 
     # "SIMPLE" STRATEGY on PREPROCESSED SIGNALS
-    x_frames_train = frames(train_dataset["x"], frame_size)
-    x_frames_test = frames(test_dataset["x"], frame_size)
+    #x_frames_train = frames(train_dataset["x"], frame_size)
+    #x_frames_test = frames(test_dataset["x"], frame_size)
+    x_frames_train=train_dataset["x"]
+    x_frames_test=test_dataset["x"]
 
     rocket_x_frames_train = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_train])
     rocket_x_frames_test = np.array([ROCKET_transform(hyperparameters, frame) for frame in x_frames_test])
@@ -138,16 +140,20 @@ def _from_signal_to_logmelspectrogram(signal:np.ndarray, hyperparameters:dict):
 
     log_mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
     return log_mel_spectrogram.T
-def LOGMELSPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}):
-    train_dataset["x"] = _from_signal_to_logmelspectrogram(train_dataset["x"],hyperparameters)
-    test_dataset["x"] = _from_signal_to_logmelspectrogram(test_dataset["x"],hyperparameters)
-    # "x" is 2D (spectral,temporal)
-    train_dataset, test_dataset=FRAMED(train_dataset,test_dataset,frame_size,hyperparameters)
+def LOGMELSPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 16, "hop_length": 16}): #"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}
+    new_train_frames=[]
+    for i,xi in enumerate(train_dataset["x"]):
+        new_train_frames.append(_from_signal_to_logmelspectrogram(xi,hyperparameters))
+    train_dataset["x"] = np.array(new_train_frames).astype(np.float)
 
-    for i in range(len(train_dataset["x"])):
-        train_dataset["x"][i]=train_dataset["x"][i].flatten()
-    for i in range(len(test_dataset["x"])):
-        test_dataset["x"][i]=test_dataset["x"][i].flatten()
+    new_test_frames = []
+    for i,xi in enumerate(test_dataset["x"]):
+        new_test_frames.append(_from_signal_to_logmelspectrogram(xi,hyperparameters))
+    test_dataset["x"] = np.array(new_test_frames).astype(np.float)
+
+    nbtrainframes,t,s=train_dataset["x"].shape
+    train_dataset["x"]=train_dataset["x"].reshape(len(train_dataset["x"]),t*s)
+    test_dataset["x"]=test_dataset["x"].reshape(len(test_dataset["x"]),t*s)
 
     return train_dataset, test_dataset
 

@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 from typing import Union,Tuple,Optional
-from strat_map import detector_strat_map, feature_extractor_strat_map
+from strat_map import detector_strat_map
 
 
 

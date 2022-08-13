@@ -16,7 +16,7 @@ def file_load(wav_name, mono=True):
 """
 import os
 import glob
-
+from functools import partial
 from typing import *
 
 from read_data.normalize_data import normalize
@@ -137,14 +137,23 @@ def DCASE_datasets_generator(path:str, dataset_prep_info:dict):
 
     def gen():
         assert(len(dir_paths)==len(dir_names))
+        fe = feature_extractor_strat_map[dataset_prep_info["FE_name"]]
+        frame_size=dataset_prep_info["frame_size"]
+        fe_hp=dataset_prep_info.get("FE_hp",None)
+
         for dataset_name,dataset_path in zip(dir_paths,dir_names):
             train_dataset,test_dataset=read_and_prepare_one_DCASE_dataset(dataset_name,
                                                                           dataset_path,
                                                                           dataset_prep_info,
                                                                           nb_frames_per_file=2,
-                                                                          max_files=100)
+                                                                          max_files=100) #read and standardize
             are_valid=check_dataset(train_dataset,test_dataset)
             if are_valid:
+                if fe_hp is None:
+                    train_dataset, test_dataset = fe(train_dataset, test_dataset, frame_size)
+                else:
+                    train_dataset,test_dataset=fe(train_dataset,test_dataset,frame_size,fe_hp)
+
                 yield train_dataset, test_dataset
             else:
                 pass #
