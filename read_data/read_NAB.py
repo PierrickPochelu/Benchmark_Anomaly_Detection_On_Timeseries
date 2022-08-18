@@ -116,9 +116,20 @@ def check_dataset(train_dataset,test_dataset): # May raise ValueError
         return False
     return True
 
+def create_sequences(values, frame_size):
+    output = []
+    nb_frames=len(values)-frame_size+1
+    for i in range(nb_frames):
+        output.append(values[i : (i + frame_size)])
+    stacked_frames=np.stack(output)
+    stacked_frames=stacked_frames.reshape((stacked_frames.shape[0],stacked_frames.shape[1]))
+    return stacked_frames
 
-
-
+def align(d):
+    if len(d["x"]) < len(d["y"]):
+        offset=len(d["y"])-len(d["x"])
+        d["y"]=d["y"][offset:]
+    return d
 def NAB_datasets_generator(NAB_path:str, dataset_prep_info:dict):
     raw_NAB_datasets=extract_NAB_datasets(NAB_path)
     frame_size=dataset_prep_info["frame_size"]
@@ -129,18 +140,21 @@ def NAB_datasets_generator(NAB_path:str, dataset_prep_info:dict):
     def gen():
         for dataset_name, dataset in raw_NAB_datasets.items():
 
-            nonframed_train_dataset, nonframed_test_dataset = normalize_and_split(dataset,
+            train_dataset, test_dataset = normalize_and_split(dataset,
                                                           train_rate=TRAIN_TEST_RATE_SPLIT,
                                                           normalize_strategy_name="STD")
-            if FE_hyperparameters is None:
-                train_dataset, test_dataset = features_extractor(train_dataset=nonframed_train_dataset,
-                                                             test_dataset=nonframed_test_dataset,
-                                                             frame_size=frame_size)
-            else:
-                train_dataset, test_dataset = features_extractor(train_dataset=nonframed_train_dataset,
-                                                             test_dataset=nonframed_test_dataset,
-                                                             frame_size=frame_size,
-                                                             hyperparameters=FE_hyperparameters)
+
+            train_dataset["x"]=create_sequences(train_dataset["x"],frame_size)
+            test_dataset["x"]=create_sequences(test_dataset["x"],frame_size)
+
+            train_dataset, test_dataset = features_extractor(train_dataset=train_dataset,
+                                                         test_dataset=test_dataset,
+                                                         frame_size=frame_size,
+                                                         hyperparameters=FE_hyperparameters)
+
+
+            test_dataset=align(test_dataset)
+
             # CHECK THE DATASET
             if not check_dataset(train_dataset, test_dataset):
                 pass # we go to the next iteration

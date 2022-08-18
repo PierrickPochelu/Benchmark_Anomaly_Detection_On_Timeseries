@@ -1,8 +1,4 @@
-import sys
 import numpy as np
-import librosa
-import librosa.core
-import librosa.feature
 from strat_map import feature_extractor_strat_map
 from read_data.dcase2021_task2_baseline_ae import common as com
 # Some comes have been used: https://github.com/y-kawagu/dcase2021_task2_baseline_ae/

@@ -2,15 +2,14 @@ import numpy as np
 from typing import *
 import os
 from insight import plot_curves, mosaic
-from one_experiment import EXPERIMENT
-
+from one_experiment import experiment_ts_builder
+from strat_map import detector_strat_map
 from read_data.read_dataset import read_and_prepare_dataset
 
 MOSAIC=False
 
 # LARGE SCALE INSIGHT
 def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, data_prep_info:dict):
-    experimenta_result={}
     tmp_dir="tmp"
     os.makedirs("tmp", exist_ok=True)
     media_dir="media"
@@ -18,10 +17,9 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
 
 
     AD_hyperparameters=None
-    proba_thresh=None
 
     # NORMALIZE: strategies: STD
-    train_datasets_generator = read_and_prepare_dataset(data_prep_info) #/!\ MEMORY CONSUMPTION. TODO a generator would be more memory efficient
+    train_datasets_generator = read_and_prepare_dataset(data_prep_info) #/!\ MEMORY CONSUMPTION. A generator load and preprocess the timeserie(s)
 
     datasets_name=data_prep_info["name"]
 
@@ -30,12 +28,13 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
     for train_dataset,test_dataset in train_datasets_generator:
         name = datasets_name.replace(os.sep, "_").split(".")[0] + "_"+detector_name
         path = os.path.join("tmp", name + ".png")
-        stat,details=EXPERIMENT(train_dataset=train_dataset,
-                                test_dataset=test_dataset,
-                                data_prep_info=data_prep_info,
-                                AD_strategies_name=detector_name,
-                                AD_hyperparameters=AD_hyperparameters,
-                                proba_thresh=0.5)
+
+        # CREATE AND LAUNCH THE EXPERIMEN T
+        AD_strat,is_realtime=detector_strat_map[detector_name]
+        exp=experiment_ts_builder(AD_strat,AD_hyperparameters)
+        preds=exp.fit_and_predict(train_dataset,test_dataset)
+        stat,details=exp.evaluate(preds,test_dataset)
+
 
         print(datasets_name, " stats:", stat)
         stats_for_mosaic.append(stat)

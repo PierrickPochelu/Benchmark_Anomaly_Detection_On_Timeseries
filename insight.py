@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, roc_auc_score, roc_curve
 import numpy as np
 from typing import Optional
 import os
@@ -9,15 +9,15 @@ def confusion_matrix_and_F1(y_pred,y_true):
     # Some timeseries does not contains abnormaly. We avoid division per zero by yielding accuracy instead of f1.
     # The returned score is always named "F1 score", for simplicity reasons.
     both_values = 0 in y_true and 1 in y_true
+    accuracy = round(np.mean(y_pred == y_true),4)
     if both_values:
         cm=confusion_matrix(y_true, y_pred)
         vals = cm.ravel()
 
         tn, fp, fn, tp = vals
         f1 = f1_score(y_true, y_pred)
-        stats={"tn":tn, "fp":fp, "fn":fn, "tp":tp, "f1":round(f1,4)}
+        stats={"tn":tn, "fp":fp, "fn":fn, "tp":tp,"acc":accuracy, "f1":round(f1,4)}
     else:
-        accuracy=np.mean(y_pred==y_true)
         ones=np.ones(len(y_true))
         twos=ones*2
         zeros=np.zeros(len(y_true))
@@ -25,8 +25,23 @@ def confusion_matrix_and_F1(y_pred,y_true):
         tn=np.sum((y_pred+y_true)==zeros)
         fp=np.sum((2*y_pred+y_true)==twos)
         fn=np.sum((y_pred+2*y_true)==twos)
-        stats={"tn":tn, "fp":fp, "fn":fn, "tp":tp, "f1":round(accuracy,4)}
+        stats={"tn":tn, "fp":fp, "fn":fn, "tp":tp,"acc":accuracy, "f1":-1}
     return stats
+
+def ROCAUC(y_pred,y_true):
+    both_values = 0 in y_true and 1 in y_true
+    if not both_values:
+        return {"rocauc":-1, "proposed_thresh":-1, "new_f1":-1}
+
+    fpr, tpr, thresholds = roc_curve(y_true, y_pred,pos_label=1.,drop_intermediate=False)
+    score=roc_auc_score(y_true, y_pred)
+    thresh_proposed=thresholds[np.argmax((tpr-fpr))]
+
+    infos=confusion_matrix_and_F1(y_pred>=thresh_proposed, y_true)
+
+    return {"rocauc":score,
+            "proposed_thresh":thresh_proposed,
+            "new_f1":infos["f1"]}
 
 def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred:np.ndarray, frame_size:int,
                 path:Optional[str]=None, txt:str= ""):
@@ -131,12 +146,3 @@ def mosaic(paths, fname, total_experimental_result, ncols=6, nrows=9):
     plt.savefig(fname)
     plt.close()
 
-if __name__=="__main__":
-    x=np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.2,0.2,0.8,0.9])
-    y=    np.array([0,0,0,0,0,0,0,1,1,0,0])
-    y_pred=np.array([0,0,0,0,0,0,0,0,1,1,0])
-    plot_curves(x[0:5], x[5:], y[5:],y_pred[5:], 1, "./media/unit_test_of_plot_curves.png","unit_test_of_plot_curves\nF1-score:0.3333")
-
-
-    #res=confusion_matrix_and_F1(np.array([1,0,0]), np.array([1,1,1]))
-    #print(res)

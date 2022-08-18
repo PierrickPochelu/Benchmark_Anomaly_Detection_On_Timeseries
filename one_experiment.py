@@ -1,86 +1,112 @@
 import time
-
+from typing import *
 import numpy as np
 from typing import Union,Tuple,Optional
 from strat_map import detector_strat_map
+from insight import confusion_matrix_and_F1, ROCAUC
+
+def convert_to_callables(AD_strategy):
+    if not isinstance(AD_strategy,list):
+        AD_strategy=[AD_strategy]
 
 
-
-
-
-def EXPERIMENT(
-        train_dataset:dict,test_dataset:dict,data_prep_info:dict,
-        AD_strategies_name:Union[str,list]="IFOREST",
-        AD_hyperparameters:Optional[dict]=None,
-        proba_thresh:float=0.5
-               )->Tuple[Optional[dict],Optional[dict]]:
-    experimental_result={}
-
-    # DETECTOR STRATEGY extract info
-    if isinstance(AD_strategies_name,str):
-        AD_strategies_name=[AD_strategies_name] # force it as a list to handle ensembles
-    detector_func_pointers=[]
-    is_realtime_vec=[]
-    for AD_strategy_name in AD_strategies_name:
-        detector_f, is_realtime = detector_strat_map[AD_strategy_name]
-        detector_func_pointers.append(detector_f)
-        is_realtime_vec.append(is_realtime)
-
-    # PREPARE TIMESTEPS FOR OFFLINE TRAINING: DATAAUG, AE, SIMPLE, ROCKET
-    start_time=time.time()
-
-
-
-    # BUILD THE MODEL AND RETURNS ITS PREDICTIONS
-    ensemble_size=len(AD_strategies_name)
-    y_test_pred=None
-    for detector_f,is_realtime in zip(detector_func_pointers,is_realtime_vec):
-        #TODO: investigate further a better architecture (how best handle optional and default arguments ?).
-        #assert(is_realtime!=train_dataset["is_framed"] and is_realtime!=test_dataset["is_framed"])
-
-        if AD_hyperparameters is None:
-            x_test_pred_local = detector_f(train_dataset, test_dataset)
+    out=[]
+    for a in AD_strategy:
+        if isinstance(a, Callable):
+            out.append(a)
+        elif isinstance(a, str):
+            out.append(detector_strat_map[a])
         else:
-            x_test_pred_local = detector_f(train_dataset, test_dataset, AD_hyperparameters)
+            raise ValueError("Not expectected type")
+    return out
 
-        if y_test_pred is None:
-            y_test_pred=x_test_pred_local/ensemble_size
+class experiment_ts_builder: #inspired from builder design pattern
+    def __init__(self, AD_strategy:Union[Callable, List, str],
+                        AD_hyperparameters:Union[Optional[Dict],List[Optional[Dict]]],
+                 is_realtime:bool=False,
+                 proba_thresh:float=0.5):
+
+        # force it to be a list to be able to handle ensembles
+        self.AD_strategies=convert_to_callables(AD_strategy)
+
+        if isinstance(AD_hyperparameters, Dict) or AD_hyperparameters is None:
+            self.AD_hyperparameters = [AD_hyperparameters]
         else:
-            y_test_pred+=x_test_pred_local/ensemble_size
-    y_test_pred=y_test_pred>proba_thresh
-    enlapsed_time=round(time.time()-start_time,3)
-    experimental_result.update({"time":enlapsed_time})
-
-    from insight import confusion_matrix_and_F1
+            self.AD_hyperparameters=AD_hyperparameters
 
 
-    # Warning: RT and Offline strategy do not exactly predict the same length of datasamples
-    # Today, it is impossible to make an ensemble between those two strategies
-    if any(is_realtime_vec):
-        y_test = test_dataset['y']
-        AD_quality_preds = confusion_matrix_and_F1(y_test_pred, y_test)
-        frame_size=1
-    else:
-        if data_prep_info["name"]=="NAB":
-            frame_size=data_prep_info["frame_size"]
-            y_test=test_dataset['y'][frame_size-1:]
-            AD_quality_preds=confusion_matrix_and_F1(y_test_pred,y_test)
-        elif data_prep_info["name"]=="DCASE":
-            frame_size=data_prep_info["frame_size"]
-            y_test=test_dataset['y']
-            AD_quality_preds=confusion_matrix_and_F1(y_test_pred,y_test)
+        self.is_realtime=is_realtime
+        self.proba_thresh=proba_thresh
+        self.experimental_result={}
 
-    experimental_result.update(AD_quality_preds)
-    details={"train_dataset":train_dataset,"test_dataset":test_dataset,"frame_size":frame_size,"y_test_pred":y_test_pred}
+        self.train_dataset=None
+        self.test_dataset=None
 
-    return experimental_result, details
+    def __deduce_frame_size(self,x):
+        if len(x.shape)==1:
+            frame_size=1
+        elif len(x.shape)==2:
+            nb_frames=len(x)
+            if nb_frames==0:
+                raise ValueError("Unexpected x is empty")
+            else:
+                frame_size=len(x[0])
+        else:
+            raise ValueError("Unexpected x shape")
+        return frame_size
+
+
+    def fit_and_predict(self, train_dataset,test_dataset
+                        )->np.ndarray:
+        # can be used latter to compute insight in the evaluation phase
+        self.train_dataset=train_dataset
+        self.test_dataset=test_dataset
+
+        # BUILD THE MODEL AND RETURNS ITS PREDICTIONS
+        start_time = time.time()
+        ensemble_size = len(self.AD_strategies)
+        y_test_pred = None
+        for detector_f,hp in zip(self.AD_strategies,self.AD_hyperparameters):
+            x_test_pred_local = detector_f(train_dataset, test_dataset, hp)
+
+            if y_test_pred is None:
+                y_test_pred = x_test_pred_local / ensemble_size
+            else:
+                y_test_pred += x_test_pred_local / ensemble_size
+        y_test_pred = y_test_pred > self.proba_thresh
+        enlapsed_time = round(time.time() - start_time, 3)
+        self.experimental_result["time"]=enlapsed_time
+        return y_test_pred
+
+    def evaluate(self,y_test_pred, test_dataset):
+        # Warning: RT and Offline strategy do not exactly predict the same length of datasamples
+        # Today, it is impossible to make an ensemble between those two strategies
+        frame_size=self.__deduce_frame_size(test_dataset["x"])
+        #y_test = test_dataset['y'][frame_size - 1:]
+
+        self.experimental_result.update( confusion_matrix_and_F1(y_test_pred>=self.proba_thresh, test_dataset["y"]))
+        self.experimental_result.update(ROCAUC(y_test_pred, test_dataset["y"]))
+
+        details = {"train_dataset": self.train_dataset, "test_dataset": test_dataset, "frame_size": frame_size,
+                   "y_test_pred": y_test_pred}
+
+        return self.experimental_result, details
+
+
+
+
+
+
+
+
+
+
 
 if __name__=="__main__":
     # GET DATA
-    from extract_data import extract_one_dataset
-
+    #from extract_data import extract_one_dataset
     #extract_datasets("./NAB-datasets/")
-    dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
+    #dataset=extract_one_dataset("./data/NAB/", "artificialWithAnomaly/art_daily_jumpsdown.csv")
 
     """
     for i in range(5):#test the reproducibility

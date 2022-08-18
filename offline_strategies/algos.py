@@ -11,8 +11,9 @@ def sklearn_post_process(model,train_dataset,test_dataset):
 
 
 
-def isolation_forest(train_dataset, test_dataset):
-    hyperparameters={"n_estimators":128,"bootstrap":False,"contamination":0.01}
+def isolation_forest(train_dataset, test_dataset,hyperparameters={}):
+    default_hyperparameters={"n_estimators":128,"bootstrap":False,"contamination":0.01}
+    hyperparameters.update(default_hyperparameters)
     if hyperparameters["bootstrap"]:
         model=IsolationForest(**hyperparameters,max_features=0.5)
     else:
@@ -21,14 +22,16 @@ def isolation_forest(train_dataset, test_dataset):
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
 
-def oneclass_svm(train_dataset, test_dataset):
-    hyperparameters = {"kernel": "linear"}
+def oneclass_svm(train_dataset, test_dataset, hyperparameters={}):
+    default_hyperparameters = {"kernel": "linear"}
+    hyperparameters.update(default_hyperparameters)
     model=OneClassSVM(kernel=hyperparameters["kernel"])
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
-def elliptic_envelope(train_dataset, test_dataset):
-    hyperparameters = {"contamination": 0.01,"assume_centered":True}
+def elliptic_envelope(train_dataset, test_dataset,hyperparameters={}):
+    default_hyperparameters = {"contamination": 0.01,"assume_centered":True}
+    hyperparameters.update(default_hyperparameters)
     model=EllipticEnvelope(**hyperparameters)
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
