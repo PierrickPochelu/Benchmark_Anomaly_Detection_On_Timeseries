@@ -1,0 +1,16 @@
+{
+    "realAWSCloudwatch/ec2_cpu_utilization_5f5533.csv": [
+        "2014-02-19 00:22:00",
+        "2014-02-24 18:37:00"
+    ],
+    "realAWSCloudwatch/ec2_disk_write_bytes_1ef3de.csv": [
+        "2014-03-10 21:09:00"
+    ],
+    "realAWSCloudwatch/ec2_network_in_5abac7.csv": [
+        "2014-03-10 18:56:00",
+        "2014-03-12 21:01:00"
+    ],
+    "realTweets/Twitter_volume_AMZN.csv": [],
+    "realTweets/Twitter_volume_GOOG.csv": [],
+    "realTweets/Twitter_volume_IBM.csv": []
+}

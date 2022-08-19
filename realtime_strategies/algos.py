@@ -1,26 +1,22 @@
 import pandas as pd
 import numpy as np
-# from nab.detectors.numenta.numentaTM_detector import NumentaTMDetector #Not used yet
 
 class NAB_dataset:
     def __init__(self, d1,d2=None):
         if d2 is None:
-            self.data = pd.DataFrame(d1['x'], columns=['value'])
+            self.data = pd.DataFrame(d1['x'], columns=['value']) # this line crash if you want online detector with frame_size
         else:
             self.data=pd.DataFrame(np.concatenate((d1["x"],d2["x"])),columns=["value"])
 
 def get_anomaly_scores(realtime_algo, test_dataset) -> np.ndarray:
     anomaly_scores = np.zeros((len(test_dataset['x']),), dtype=np.float32)
     for i, v in enumerate(test_dataset['x']):
-        #try:
         anomaly_score = realtime_algo.handleRecord({"value": v})
         if isinstance(anomaly_score, list) or isinstance(anomaly_score,tuple):  # handle different technologies
             anomaly_score = anomaly_score[0]
         else:
             pass
         anomaly_scores[i] = anomaly_score
-        #except:
-        #    print(i,"->", v)
     return anomaly_scores
 
 def predict_with_strat(realtime_algo, test_dataset, thresh=0.5) -> np.ndarray:
@@ -30,7 +26,10 @@ def predict_with_strat(realtime_algo, test_dataset, thresh=0.5) -> np.ndarray:
     return rings
 
 
-def RE(train_dataset, test_dataset,hyperparameters={"nb_bins":5,}):
+def RE(train_dataset, test_dataset,wanted_hyperparameters={"nb_bins":5,}):
+    hyperparameters={"nb_bins":5,}
+    hyperparameters.update(wanted_hyperparameters)
+
     x_NAB_dataset_train = NAB_dataset(train_dataset)
     from nab.detectors.relative_entropy.relative_entropy_detector import RelativeEntropyDetector
     realtime_algo = RelativeEntropyDetector(dataSet=x_NAB_dataset_train, probationaryPercent=1.)
@@ -46,10 +45,12 @@ def RE(train_dataset, test_dataset,hyperparameters={"nb_bins":5,}):
     return rings
 
 
-def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
-
+def Numenta(train_dataset, test_dataset,wanted_hyperparameters={}):
+    hyperparameters={"scale":0.125}
+    hyperparameters.update(wanted_hyperparameters)
     import ssl
     ssl._create_default_https_context = ssl._create_unverified_context
+
 
     x = "https://github.com/markNZed/ARTimeNAB.jl"
     jl_code = f'import Pkg;Pkg.add(url="{x}")'
@@ -62,18 +63,22 @@ def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
     class AR:
         def __init__(self,train_dataset,hyperparameters):
             self.scale = hyperparameters["scale"]
-            self.max=np.max(train_dataset["x"])
-            self.min=np.min(train_dataset["x"])
+            self.max=max(np.max(train_dataset["x"]),np.max(test_dataset["x"]))
+            self.min=min(np.min(train_dataset["x"]),np.min(test_dataset["x"]))
             x_NAB_dataset_train = NAB_dataset(train_dataset)
 
             # TODO: Those two lines are a uurn around. We need a  suitable normalization to avoid this or to update NAB algorithms!!!!
             # The code to update is made with julia
+            """
             if np.min(test_dataset["x"])<self.min or np.max(test_dataset["x"])>self.max:
                 x_NAB_dataset_train = NAB_dataset(train_dataset,test_dataset) # we concatenante the train and test to inform NAB of the min and max possible value
-
                 probationaryPercent=float(len(train_dataset["x"]))/(len(train_dataset["x"])+len(test_dataset["x"]))
             else:
-                probationaryPercent=1.
+            """
+            #x_NAB_dataset_train = NAB_dataset(train_dataset,
+            #                                 test_dataset)  # we concatenante the train and test to inform NAB of the min and max possible value
+            #probationaryPercent = float(len(train_dataset["x"])) / (len(train_dataset["x"]) + len(test_dataset["x"]))
+            probationaryPercent=1.
             self.algo = ARTimeDetector(dataSet=x_NAB_dataset_train, probationaryPercent=probationaryPercent)
             self.algo.initialize()
             # WARNING: ARTime fails if it take a too large value as input compared to those seen during the training phase
@@ -99,10 +104,10 @@ def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
             """
             #processed_x=amplificator(min(x["value"],self.max),1.01,dir="up")
             #processed_x=amplificator(max(processed_x,self.min),1.01,dir="down")
-            #record={"value":processed_x}
+            record={"value":x}
             #wh=self.algo.jl.p
             #print(wh)
-            p=self.algo.handleRecord(x) #WARNING: if x is too large it can fail!!!!!!!! In this case increase "scale"
+            p=self.algo.handleRecord(record) #WARNING: if x is too large it can fail!!!!!!!! In this case increase "scale"
             return p
 
     algo=AR(train_dataset,hyperparameters)
@@ -111,9 +116,10 @@ def Numenta(train_dataset, test_dataset,hyperparameters={"scale":0.125}):
     return predict_with_strat(algo, test_dataset, thresh)
 
 
-def OSE(train_dataset, test_dataset,hyperparameters={"context_length":7,"neurons":15,
-                                                     "norm_bits":3,"percentile":0.90,
-                                                     "rest_period":1,"threshold":0.75}):
+def OSE(train_dataset, test_dataset,hyperparameters={}):
+    default_hyperparameters={"context_length":7,"neurons":15,"norm_bits":3,"percentile":0.90,"rest_period":1,"threshold":0.75}
+    hyperparameters.update(default_hyperparameters)
+
     x_NAB_dataset_train = NAB_dataset(train_dataset)
 
 
@@ -160,6 +166,7 @@ def CADKNN(train_dataset, test_dataset, hyperparameters={}):
     x_NAB_dataset_train = NAB_dataset(train_dataset)
     from nab.detectors.knncad.knncad_detector import KnncadDetector
     algo = KnncadDetector(dataSet=x_NAB_dataset_train, probationaryPercent=1.) #train
+    algo.initialize()
     return predict_with_strat(algo, test_dataset)
 
 

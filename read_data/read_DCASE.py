@@ -133,22 +133,23 @@ def DCASE_datasets_generator(path:str, dataset_prep_info:dict):
 
     def gen():
         assert(len(dir_paths)==len(dir_names))
-        fe = feature_extractor_strat_map[dataset_prep_info["FE_name"]]
-        frame_size=dataset_prep_info["frame_size"]
-        fe_hp=dataset_prep_info.get("FE_hp",None)
+        hp={"frame_size":128,"nb_frames_per_file":2,"max_files":100}
+        hp.update(dataset_prep_info)
+
+        fe = feature_extractor_strat_map[hp["FE_name"]]
+        frame_size=hp["frame_size"]
+        nb_frames_per_file=hp["nb_frames_per_file"]
+        max_files=hp["max_files"]
 
         for dataset_name,dataset_path in zip(dir_paths,dir_names):
             train_dataset,test_dataset=read_and_prepare_one_DCASE_dataset(dataset_name,
                                                                           dataset_path,
                                                                           dataset_prep_info,
-                                                                          nb_frames_per_file=2,
-                                                                          max_files=100) #read and standardize
+                                                                          nb_frames_per_file=nb_frames_per_file,
+                                                                          max_files=max_files) #read and standardize
             are_valid=check_dataset(train_dataset,test_dataset)
             if are_valid:
-                if fe_hp is None:
-                    train_dataset, test_dataset = fe(train_dataset, test_dataset, frame_size)
-                else:
-                    train_dataset,test_dataset=fe(train_dataset,test_dataset,frame_size,fe_hp)
+                train_dataset,test_dataset=fe(train_dataset,test_dataset,frame_size,hp)
 
                 yield train_dataset, test_dataset
             else:

@@ -22,23 +22,23 @@ def isolation_forest(train_dataset, test_dataset,hyperparameters={}):
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
 
-def oneclass_svm(train_dataset, test_dataset, hyperparameters={}):
-    default_hyperparameters = {"kernel": "linear"}
-    hyperparameters.update(default_hyperparameters)
+def oneclass_svm(train_dataset, test_dataset, wanted_hyperparameters={}):
+    hyperparameters = {"kernel": "linear"}
+    hyperparameters.update(wanted_hyperparameters)
     model=OneClassSVM(kernel=hyperparameters["kernel"])
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
-def elliptic_envelope(train_dataset, test_dataset,hyperparameters={}):
-    default_hyperparameters = {"contamination": 0.01,"assume_centered":True}
-    hyperparameters.update(default_hyperparameters)
+def elliptic_envelope(train_dataset, test_dataset,wanted_hyperparameters={}):
+    hyperparameters = {"contamination": 0.01,"assume_centered":True}
+    hyperparameters.update(wanted_hyperparameters)
     model=EllipticEnvelope(**hyperparameters)
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
-def _AE_reconstruction(deeplearning_techno, train_dataset, test_dataset, hyperparameters={}):
+def _AE_reconstruction(deeplearning_techno, train_dataset, test_dataset, wanted_hyperparameters={}):
     from offline_strategies.autoencoder import AE
-    model = AE(deeplearning_techno, hyperparameters)
+    model = AE(deeplearning_techno, wanted_hyperparameters)
     model.fit(train_dataset["x"])
     x_test_pred = model.predict(test_dataset["x"])
     del model

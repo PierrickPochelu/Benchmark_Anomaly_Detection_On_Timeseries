@@ -34,7 +34,7 @@ def ROCAUC(y_pred,y_true):
         return {"rocauc":-1, "proposed_thresh":-1, "new_f1":-1}
 
     fpr, tpr, thresholds = roc_curve(y_true, y_pred,pos_label=1.,drop_intermediate=False)
-    score=roc_auc_score(y_true, y_pred)
+    score=round(roc_auc_score(y_true, y_pred),4)
     thresh_proposed=thresholds[np.argmax((tpr-fpr))]
 
     infos=confusion_matrix_and_F1(y_pred>=thresh_proposed, y_true)
