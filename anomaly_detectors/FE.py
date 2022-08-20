@@ -1,5 +1,5 @@
 import numpy as np
-
+from anomaly_detectors.offline_algos import compute_hyperparameters
 
 def create_sequences(values, frame_size):
     output = []
@@ -56,8 +56,9 @@ def FRAMED(train_dataset, test_dataset, frame_size, hyperparameters={}):
     train_dataset["x"]=x_frames_train
     test_dataset["x"]=x_frames_test
     return train_dataset, test_dataset
-def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels": 128, "kernel_sizes": [7, 9, 11]}):
+def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {}):
     # https://pyts.readthedocs.io/en/stable/modules/transformation.html
+    hyperparameters=compute_hyperparameters(hyperparameters,{"n_kernels": 128, "kernel_sizes": [7, 9, 11]})
     from pyts.transformation import ROCKET as pyts_ROCKET
 
     def rocket_pre_shape(x):
@@ -114,7 +115,8 @@ def LSTM_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
 def dense_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
     return _AE_FE("DENSE_AE", train_dataset,test_dataset,frame_size,hyperparameters)
 
-def DATAAUG (train_dataset,test_dataset,frame_size,hyperparameters={"multiplier":10}):
+def DATAAUG (train_dataset,test_dataset,frame_size,wanted_hyperparameters={}):
+    hyperparameters=compute_hyperparameters(wanted_hyperparameters,{"multiplier":10})
     x_train=train_dataset["x"]
     y_train=train_dataset["y"]
     x_test=test_dataset["x"]
@@ -173,29 +175,4 @@ def SPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate
     return train_dataset, test_dataset
 
 
-
-if __name__=="__main__":
-
-    import numpy as np
-    x=np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.2,0.8,0.9])
-    y=np.array([0,0,0,0,0,0,0,1,0,0])
-    train_dataset={"x":x[:5],"y":y[:5]}
-    test_dataset={"x":x[5:],"y":y[5:]}
-    xi,yi=from_signal_to_frame(train_dataset, test_dataset, 3, "SIMPLE")
-
-    from pyts.transformation import ROCKET
-    model=ROCKET(n_kernels=8192,kernel_sizes=[3])
-    raw_train_x=train_dataset["x"]
-
-    def rocket_pre_shape(x):
-        return x.reshape((1,len(x)))
-    def rocket_post_shape(x):
-        return x.T.reshape((len(x),))
-    raw_train_x=rocket_pre_shape(raw_train_x)
-    model.fit(raw_train_x)
-    rocket_features_extracted_train=model.transform(rocket_pre_shape(train_dataset["x"]))
-    rocket_features_extracted_test=model.transform(rocket_pre_shape(test_dataset["x"]))
-
-    train_dataset["x"]=rocket_post_shape(rocket_features_extracted_train)
-    train_dataset["x"]=rocket_post_shape(rocket_features_extracted_test)
 
