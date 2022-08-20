@@ -1,41 +1,37 @@
-
-from one_experiment import experiment_ts_builder
-from read_data.read_dataset import read_and_prepare_dataset
-from strat_map import detector_strat_map,feature_extractor_strat_map
-AD_strat_name = "ONESVM"
-data_prep_info = {"name": "NAB",
-                  "path": "data/NAB_SMALL/",
-                  "FE_name": "FRAMED",
-                  "frame_size": 128}
-AD_strategy, _ = detector_strat_map[AD_strat_name]
-
-train_datasets_generator = read_and_prepare_dataset(
-    data_prep_info)  # /!\ MEMORY CONSUMPTION. A generator load and preprocess the timeserie(s)
-
-exp = experiment_ts_builder(AD_strategy=AD_strategy, AD_hyperparameters={})
-
-(train_dataset, test_dataset) = next(train_datasets_generator)
-
-preds=exp.fit_and_predict(train_dataset, test_dataset)
-
-res,_=exp.evaluate(preds,test_dataset)
-
-print(res)
-"""
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="-1" # The CPU is about as fast as the GPU for TS applications and contains much more memory
+os.environ["CUDA_VISIBLE_DEVICES"]="0" # The CPU is about as fast as the GPU for TS applications and contains much more memory
 
 
 from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
+
+if __name__=="__main__":
+    for fe_strat_name,frame_size in [("FRAMED",128),("LOGMELSPECTR",4096)]:
+        for detector_strat_name in ["IFOREST","ONESVM","ELLIPTIC","DENSE_AE","LSTM_AE","CONV_AE"]:
+            hp={"batch_size":128}
+            data_prep_info={"name":"DCASE", "path":"./data/DCASE/", "frame_size":frame_size, "FE_name":fe_strat_name,
+                            "nb_frames_per_file":100, "max_files": 100} #used for DCASE dataset only
+
+            data_prep_info.update(hp) # usefull for deep learning features extractor
+            results=LAUNCH_EXPERIMENTS_AT_SCALE(data_prep_info, detector_strat_name, hp)
+            print(fe_strat_name, detector_strat_name, results)
+
+            with open("res.txt","a") as f:
+                txt=fe_strat_name+" "+detector_strat_name+" "+str(results)+"\n"
+                f.write(txt)
+"""
 if __name__=="__main__":
 
-    fe_strat_name="FRAMED"
-    detector_strat_name= "ONESVM"
+    fe_strat_name="DENSE_AE"
+    detector_strat_name= "IFOREST"
 
-    data_prep_info={"name":"DCASE", "path":"./data/DCASE/", "FE_name":fe_strat_name,"frame_size":4096*4}
+    hp={"batch_size":50,"epochs":1}
+    data_prep_info={"name":"DCASE", "path":"./data/DCASE_SMALL/", "frame_size":1024, "FE_name":fe_strat_name,
+                    "nb_frames_per_file":100, "max_files": 100} #used for DCASE dataset only
 
-    print("Compute the mosaic with the strategy: ", detector_strat_name)
-    results=LAUNCH_EXPERIMENTS_AT_SCALE(fe_strat_name, detector_strat_name, data_prep_info)
+    data_prep_info.update(hp) # usefull for deep learning features extractor
+    results=LAUNCH_EXPERIMENTS_AT_SCALE(data_prep_info, detector_strat_name, hp)
     print(fe_strat_name, detector_strat_name, results)
-    
+
+
+    #FRAMED DENSE_AE {'time': 4883.93, 'tp': 2243, 'tn': 13500, 'fp': 2100, 'fn': 12457, 'f1': 0.1991, 'acc': 0.5196, 'rocauc': 0.5049}
 """

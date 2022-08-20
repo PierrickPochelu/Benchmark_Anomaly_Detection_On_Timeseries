@@ -74,7 +74,6 @@ class experiment_ts_builder: #inspired from builder design pattern
                 y_test_pred = x_test_pred_local / ensemble_size
             else:
                 y_test_pred += x_test_pred_local / ensemble_size
-        y_test_pred = y_test_pred > self.proba_thresh
         enlapsed_time = round(time.time() - start_time, 3)
         self.experimental_result["time"]=enlapsed_time
         return y_test_pred

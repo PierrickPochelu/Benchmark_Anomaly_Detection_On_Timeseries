@@ -37,11 +37,13 @@ def ROCAUC(y_pred,y_true):
     score=round(roc_auc_score(y_true, y_pred),4)
     thresh_proposed=thresholds[np.argmax((tpr-fpr))]
 
+
     infos=confusion_matrix_and_F1(y_pred>=thresh_proposed, y_true)
 
     return {"rocauc":score,
             "proposed_thresh":thresh_proposed,
-            "new_f1":infos["f1"]}
+            "new_f1":infos["f1"],
+            "new_acc":infos["acc"]}
 
 def plot_curves(x_train:np.ndarray, x_test:np.ndarray, y_test:np.ndarray, y_pred:np.ndarray, frame_size:int,
                 path:Optional[str]=None, txt:str= ""):

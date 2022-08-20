@@ -18,6 +18,7 @@ def aggregate_stats(stats:List[Dict])->Dict:
     f1_scores=[]
     acc_scores=[]
     rocauc_scores=[]
+    proposed_threshs,new_f1s,new_accs=[],[],[]
     for stat in stats:
         acc_scores.append(stat["acc"])
         if stat["f1"]==-1:
@@ -26,12 +27,21 @@ def aggregate_stats(stats:List[Dict])->Dict:
             f1_scores.append(stat["f1"])
         if stat["rocauc"]!=-1:
             rocauc_scores.append(stat["rocauc"])
+            proposed_threshs.append(stat["proposed_thresh"])
+            new_f1s.append(stat["new_f1"])
+            new_accs.append(stat["new_acc"])
 
+    # mean and round
     mean_f1_scores=np.round(np.mean(f1_scores),4)
     mean_acc_scores = np.round(np.mean(acc_scores), 4)
     mean_rocauc_scores = np.round(np.mean(rocauc_scores), 4)
+    prob_thresh=np.round(np.mean(proposed_threshs),4)
+    new_f1 = np.round(np.mean(acc_scores), 4)
+    new_acc = np.round(np.mean(rocauc_scores), 4)
     global_info={"time":enlapsed_time, "tp":tp, "tn":tn, "fp":fp, "fn":fn,
-                        "f1":mean_f1_scores, "acc":mean_acc_scores, "rocauc":mean_rocauc_scores}
+                        "f1":mean_f1_scores, "acc":mean_acc_scores, "rocauc":mean_rocauc_scores,
+                        "prob_thresh":prob_thresh,"new_f1":new_f1,"new_acc":new_acc
+                 }
     return global_info
 
 

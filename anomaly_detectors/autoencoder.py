@@ -14,16 +14,16 @@ import numpy as np
 
 def default_LSTM_hyperparameters():
     return {"init_filters": 32, "dropout_rate":0.2, "lr":0.001, "nb_layers":1,
-            "batch_size":32,"l2_reg":0.001,"percentile":0.999,"epochs":100} # warning it takes longtime so 100 epochs is enough
+            "batch_size":32,"l2_reg":0.001,"percentile":0.995,"epochs":100} # warning it takes longtime so 100 epochs is enough
 
 def default_dense_hyperparameters():
-    return {"init_filters": 32, "dropout_rate":0.0, "lr":0.001, "nb_layers":1,
+    return {"init_filters": 128, "dropout_rate":0.2, "lr":0.001, "nb_layers":1,
             "batch_size":128,"l2_reg":0.001,"percentile":0.995,"epochs":1000}
 
 def default_conv_hyperparameters():
     return {"K": 7, "K_reduc":0,
             "init_filters": 32, "dropout_rate":0.2, "lr":0.001, "nb_layers":4,
-            "batch_size":128,"l2_reg":0.001,"percentile":0.999,"epochs":1000}
+            "batch_size":128,"l2_reg":0.001,"percentile":0.995,"epochs":1000}
 
 def _from_standardized_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
     try:
@@ -215,7 +215,7 @@ class AE:
         x_train_pred = self.model.predict(x_train_frames,verbose=VERBOSITY)
         train_reconstruction_loss = np.mean(np.abs(x_train_pred - x_train_frames), axis=1)
         self.threshold = np.quantile(train_reconstruction_loss,self.PERCENTILE)+1e-7 #1e-7 increase the airthmetic robustness
-        self.max=max(np.max(train_reconstruction_loss),self.threshold*2) # I propose to handle it like this
+        self.max=max(np.max(train_reconstruction_loss),self.threshold) # I propose to handle it like this
         self.min=np.min(train_reconstruction_loss)
 
 
