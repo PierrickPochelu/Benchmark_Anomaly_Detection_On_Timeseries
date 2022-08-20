@@ -8,15 +8,40 @@ from read_data.read_dataset import read_and_prepare_dataset
 
 MOSAIC=False
 
+def aggregate_stats(stats:List[Dict])->Dict:
+    tp=sum([stat["tp"] for stat in stats])
+    tn=sum([stat["tn"] for stat in stats])
+    fp=sum([stat["fp"] for stat in stats])
+    fn=sum([stat["fn"] for stat in stats])
+    enlapsed_time=round(sum([stat["time"] for stat in stats]),2)
+
+    f1_scores=[]
+    acc_scores=[]
+    rocauc_scores=[]
+    for stat in stats:
+        acc_scores.append(stat["acc"])
+        if stat["f1"]==-1:
+            f1_scores.append(stat["acc"])
+        else:
+            f1_scores.append(stat["f1"])
+        if stat["rocauc"]!=-1:
+            rocauc_scores.append(stat["rocauc"])
+
+    mean_f1_scores=np.round(np.mean(f1_scores),4)
+    mean_acc_scores = np.round(np.mean(acc_scores), 4)
+    mean_rocauc_scores = np.round(np.mean(rocauc_scores), 4)
+    global_info={"time":enlapsed_time, "tp":tp, "tn":tn, "fp":fp, "fn":fn,
+                        "f1":mean_f1_scores, "acc":mean_acc_scores, "rocauc":mean_rocauc_scores}
+    return global_info
+
+
+
 # LARGE SCALE INSIGHT
-def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, data_prep_info:dict):
+def LAUNCH_EXPERIMENTS_AT_SCALE(data_prep_info:dict, detector_name:str, AD_hyperparameters:dict):
     tmp_dir="tmp"
     os.makedirs("tmp", exist_ok=True)
     media_dir="media"
     os.makedirs("media",exist_ok=True)
-
-
-    AD_hyperparameters=None
 
     # NORMALIZE: strategies: STD
     train_datasets_generator = read_and_prepare_dataset(data_prep_info) #/!\ MEMORY CONSUMPTION. A generator load and preprocess the timeserie(s)
@@ -24,20 +49,19 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
     datasets_name=data_prep_info["name"]
 
     paths_for_mosaic=[] # we will build a beautiful mosaic
-    stats_for_mosaic=[]
+    stats=[]
     for train_dataset,test_dataset in train_datasets_generator:
         name = datasets_name.replace(os.sep, "_").split(".")[0] + "_"+detector_name
         path = os.path.join("tmp", name + ".png")
 
         # CREATE AND LAUNCH THE EXPERIMEN T
-        AD_strat,is_realtime=detector_strat_map[detector_name]
-        exp=experiment_ts_builder(AD_strat,AD_hyperparameters)
+        exp=experiment_ts_builder(detector_name,AD_hyperparameters)
         preds=exp.fit_and_predict(train_dataset,test_dataset)
         stat,details=exp.evaluate(preds,test_dataset)
 
 
-        print(datasets_name, " stats:", stat)
-        stats_for_mosaic.append(stat)
+        print(detector_name, " stat:", stat)
+        stats.append(stat)
         if stat is not None and MOSAIC:
             # Monitor
             paths_for_mosaic.append(path)
@@ -51,16 +75,11 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
                         path=path, txt=txt)
 
     # compute global results
-    tp=sum([stat["tp"] for stat in stats_for_mosaic])
-    tn=sum([stat["tn"] for stat in stats_for_mosaic])
-    fp=sum([stat["fp"] for stat in stats_for_mosaic])
-    fn=sum([stat["fn"] for stat in stats_for_mosaic])
-    enlapsed_time=round(sum([stat["time"] for stat in stats_for_mosaic]),3)
-    mean_f1_scores=round(np.mean([stat["f1"] for stat in stats_for_mosaic]),4)
+    experimental_resut=aggregate_stats(stats)
 
-    # display it
-    experimental_resut={"time":enlapsed_time, "tp":tp, "tn":tn, "fp":fp, "fn":fn, "f1":mean_f1_scores}
+
     if MOSAIC:
+        feature_extractor_name=data_prep_info["FE_name"]
         mosaic_name=f"{feature_extractor_name}_{detector_name}_mosaic.png"
         mosaic_path=os.path.join(media_dir,mosaic_name)
         mosaic(paths_for_mosaic, mosaic_path, experimental_resut)
@@ -70,5 +89,5 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(feature_extractor_name:str, detector_name:str, d
             fpath=os.path.join(tmp_dir,fname)
             if os.path.exists(fpath):
                 os.remove(fpath)
-    print("ok")
+
     return experimental_resut

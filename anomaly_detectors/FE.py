@@ -88,9 +88,9 @@ def ROCKET(train_dataset,test_dataset,frame_size,hyperparameters = {"n_kernels":
     return train_dataset, test_dataset
 def _AE_FE(deeplearning_techno, train_dataset,test_dataset,frame_size,hyperparameters={}):
 
-    x_frames_train, x_frames_test = FRAMED(train_dataset, test_dataset, frame_size)
+    x_frames_train, x_frames_test = train_dataset["x"],test_dataset["x"]#FRAMED(train_dataset, test_dataset, frame_size)
 
-    from offline_strategies.autoencoder import AE
+    from anomaly_detectors.autoencoder import AE
     model = AE(deeplearning_techno,hyperparameters)
     model.fit(x_frames_train)
     x_frames_train = model.features_extractor(x_frames_train).squeeze()
@@ -140,7 +140,9 @@ def _from_signal_to_logmelspectrogram(signal:np.ndarray, hyperparameters:dict):
 
     log_mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
     return log_mel_spectrogram.T
-def LOGMELSPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 16, "hop_length": 16}): #"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}
+def LOGMELSPECTR(train_dataset,test_dataset,frame_size,wanted_hyperparameters={}): #"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}
+    hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}
+    wanted_hyperparameters.update(wanted_hyperparameters)
     new_train_frames=[]
     for i,xi in enumerate(train_dataset["x"]):
         new_train_frames.append(_from_signal_to_logmelspectrogram(xi,hyperparameters))
@@ -151,13 +153,20 @@ def LOGMELSPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"samplin
         new_test_frames.append(_from_signal_to_logmelspectrogram(xi,hyperparameters))
     test_dataset["x"] = np.array(new_test_frames).astype(np.float)
 
+    # reshape
     nbtrainframes,t,s=train_dataset["x"].shape
     train_dataset["x"]=train_dataset["x"].reshape(len(train_dataset["x"]),t*s)
     test_dataset["x"]=test_dataset["x"].reshape(len(test_dataset["x"]),t*s)
 
+    # renorm
+    mu,std=np.mean(train_dataset["x"]),np.std(train_dataset["x"])
+    train_dataset["x"]=(train_dataset["x"]-mu)/(std+1e-7)
+    test_dataset["x"] =(test_dataset["x"]-mu) / (std + 1e-7)
+
     return train_dataset, test_dataset
 
 def SPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}):
+    raise NotImplementedError("no spectrogram")
     train_dataset["x"] = _from_signal_to_logmelspectrogram(train_dataset["x"],hyperparameters)
     test_dataset["x"] = _from_signal_to_logmelspectrogram(test_dataset["x"],hyperparameters)
     train_dataset, test_dataset=FRAMED(train_dataset,test_dataset,frame_size,hyperparameters)

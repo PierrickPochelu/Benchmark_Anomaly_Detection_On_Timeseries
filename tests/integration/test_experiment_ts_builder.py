@@ -61,5 +61,25 @@ class Test(unittest.TestCase):
         self.assertTrue(1>np.mean(f1_scores)>0)
         self.assertTrue(1>np.mean(rocauc_scores)>0)
 
+    def test_launch_experiments_at_scale(self):
+        from experiments import LAUNCH_EXPERIMENTS_AT_SCALE
+        fs = 128
+        fe_strat_name = "FRAMED"
+        for detector_strat_name, frame_size in [("RE", 1),
+                                                ("IFOREST", fs),
+                                                ("ONESVM", fs),
+                                                ("ELLIPTIC", fs),
+                                                ("DENSE_AE", fs),
+                                                ("LSTM_AE", fs),
+                                                ("CONV_AE", fs)]:
+            hp = {"batch_size": 50, "epochs": 1}
+            data_prep_info = {"name": "DCASE", "path": "./data/DCASE_SMALL/", "frame_size": frame_size,
+                              "FE_name": fe_strat_name,
+                              "nb_frames_per_file": 2, "max_files": 10}  # used for DCASE dataset only
+
+            data_prep_info.update(hp)  # usefull for deep learning features extractor
+            results = LAUNCH_EXPERIMENTS_AT_SCALE(data_prep_info, detector_strat_name, hp)
+            print(fe_strat_name, detector_strat_name, results)
+
 if __name__ == '__main__':
     unittest.main()

@@ -267,13 +267,21 @@ def file_list_generator(DCASE_path,
         anomaly_labels = np.ones(len(anomaly_files))
 
         # TODO: Interleaved train and test
-        files = np.concatenate((normal_files, anomaly_files), axis=0)
-        labels = np.concatenate((normal_labels, anomaly_labels), axis=0)
+        files=[]
+        labels=[]
+        for nf,af in zip(normal_files,anomaly_files):
+            files.append(nf)
+            files.append(af)
+        for nl,al in zip(normal_labels,anomaly_labels):
+            labels.append(nl)
+            labels.append(al)
 
-        idx=np.array(range(len(files)))
-        np.random.shuffle(idx)
-        files=files[idx]
-        labels=labels[idx]
+        #files = np.concatenate((normal_files, anomaly_files), axis=0)
+        #labels = np.concatenate((normal_labels, anomaly_labels), axis=0)
+        #idx=np.array(range(len(files)))
+        #np.random.shuffle(idx)
+        #files=files[idx]
+        #labels=labels[idx]
     else:
         path = f"{DCASE_path}/{split_name}/*.{ext}"
         query = os.path.abspath(path)

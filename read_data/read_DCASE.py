@@ -69,14 +69,13 @@ def read_and_prepare_one_DCASE_dataset(dataset_name, dataset_path, dataset_prep_
 
 
     for idx,(fpath,flabel) in enumerate(zip(x_files_train,y_train)):
-        print("fpath,flabel->",fpath,flabel)
         file_frames_raw_data=from_one_file_to_frames(fpath,
                                                      nb_frames=nb_frames_per_file,
                                                      data_prep_info=dataset_prep_info)
         file_frames_labels = np.ones((len(file_frames_raw_data),)) * flabel
         train_dataset["x"].append(file_frames_raw_data)
-        train_dataset["y"].append(file_frames_labels)
-        if idx==max_files:
+        train_dataset["y"].append(file_frames_labels)#for each frame we have a label
+        if idx==max_files-1:
             break
     for idx,(fpath,flabel) in enumerate(zip(x_files_test,y_test)):
         file_frames_raw_data=from_one_file_to_frames(fpath,
@@ -85,18 +84,16 @@ def read_and_prepare_one_DCASE_dataset(dataset_name, dataset_path, dataset_prep_
         file_frames_labels = np.ones((len(file_frames_raw_data),)) * flabel
         test_dataset["x"].append(file_frames_raw_data)
         test_dataset["y"].append(file_frames_labels)
-        if idx==max_files:
+        if idx==max_files-1:
             break
 
-    assert(len(train_dataset["x"])==len(train_dataset["y"]))
-    assert(len(test_dataset["x"])==len(test_dataset["y"]))
     train_dataset["x"]=np.concatenate(train_dataset["x"],axis=0)
     train_dataset["y"]=np.concatenate(train_dataset["y"],axis=0)
     test_dataset["x"]=np.concatenate(test_dataset["x"],axis=0)
     test_dataset["y"]=np.concatenate(test_dataset["y"],axis=0)
 
 
-    assert(len(test_dataset["x"])==len(test_dataset["y"]))
+
 
 
     # NORM THE SIGNAL (TODO: factorization with NAB method is possible
@@ -122,6 +119,8 @@ def read_and_prepare_one_DCASE_dataset(dataset_name, dataset_path, dataset_prep_
                                                          hyperparameters=FE_hyperparameters)
     """
     # CHECK THE DATASET
+    assert (len(test_dataset["x"]) == len(test_dataset["y"]))
+    assert (len(train_dataset["x"]) == len(train_dataset["y"]))
     from read_data.read_NAB import check_dataset
     if not check_dataset(train_dataset, test_dataset):
         return None, None
@@ -150,15 +149,9 @@ def DCASE_datasets_generator(path:str, dataset_prep_info:dict):
             are_valid=check_dataset(train_dataset,test_dataset)
             if are_valid:
                 train_dataset,test_dataset=fe(train_dataset,test_dataset,frame_size,hp)
-
                 yield train_dataset, test_dataset
             else:
                 pass #
     return gen()
 
 
-if __name__=="__main__":
-    dataset_generator=DCASE_datasets_generator("../data/DCASE/", {"frame_size": 128, "FE_name": "FRAMED", "FE_hp": None})
-    for train_dataset,test_dataset in dataset_generator:
-        print("train mediane:", np.median(train_dataset["x"]))
-        print("test_mediane: ", np.median(test_dataset["x"]))

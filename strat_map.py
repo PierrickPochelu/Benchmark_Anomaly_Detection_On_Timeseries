@@ -1,9 +1,9 @@
 # When a new algorithm is implemented do not forget to update this file
-from realtime_strategies.algos import CADKNN,RE,Numenta,OSE,stump
-from offline_strategies.algos import oneclass_svm,isolation_forest,elliptic_envelope
-from offline_strategies.algos import conv_AE_reconstruction,LSTM_AE_reconstruction,dense_AE_reconstruction
-from offline_strategies.FE import ROCKET, DATAAUG, FRAMED, SPECTR, LOGMELSPECTR, NONFRAMED
-from offline_strategies.FE import conv_AE_FE,LSTM_AE_FE,dense_AE_FE
+from anomaly_detectors.realtime_algos import CADKNN,RE,Numenta,OSE,stump
+from anomaly_detectors.offline_algos import oneclass_svm,isolation_forest,elliptic_envelope
+from anomaly_detectors.offline_algos import conv_AE_reconstruction,LSTM_AE_reconstruction,dense_AE_reconstruction
+from anomaly_detectors.FE import ROCKET, DATAAUG, FRAMED, SPECTR, LOGMELSPECTR, NONFRAMED
+from anomaly_detectors.FE import conv_AE_FE,LSTM_AE_FE,dense_AE_FE
 
 detector_strat_map={"RE":(RE,True),
            "CADKNN":(CADKNN,True),

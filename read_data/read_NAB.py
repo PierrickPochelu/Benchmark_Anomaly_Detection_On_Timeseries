@@ -144,6 +144,7 @@ def NAB_datasets_generator(NAB_path:str, dataset_prep_info:dict):
                                                           train_rate=TRAIN_TEST_RATE_SPLIT,
                                                           normalize_strategy_name="STD")
 
+
             train_dataset["x"]=create_sequences(train_dataset["x"],frame_size)
             test_dataset["x"]=create_sequences(test_dataset["x"],frame_size)
 
@@ -151,8 +152,6 @@ def NAB_datasets_generator(NAB_path:str, dataset_prep_info:dict):
                                                          test_dataset=test_dataset,
                                                          frame_size=frame_size,
                                                          hyperparameters=FE_hyperparameters)
-
-
             test_dataset=align(test_dataset)
 
             # CHECK THE DATASET

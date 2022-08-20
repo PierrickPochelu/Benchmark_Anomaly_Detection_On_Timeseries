@@ -1,4 +1,4 @@
-
+VERBOSITY=1
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 config = ConfigProto()
@@ -18,7 +18,7 @@ def default_LSTM_hyperparameters():
 
 def default_dense_hyperparameters():
     return {"init_filters": 32, "dropout_rate":0.0, "lr":0.001, "nb_layers":1,
-            "batch_size":128,"l2_reg":0.001,"percentile":0.999,"epochs":1000}
+            "batch_size":128,"l2_reg":0.001,"percentile":0.995,"epochs":1000}
 
 def default_conv_hyperparameters():
     return {"K": 7, "K_reduc":0,
@@ -160,7 +160,7 @@ class AE:
         self.NB_EPOCH = self.hp["epochs"]
 
         # Optimizer settings are common to all autoencoders technologies (LSTM, CONV, DENS)
-        self.PATIENCE_RATE=0.1 #commonly used rule of thumb.
+        self.PATIENCE_RATE=0.05 #commonly used rule of thumb.
         self.input_tensor=None
         self.output_tensor=None
         self.features_tensor=None
@@ -208,11 +208,11 @@ class AE:
             callbacks=[
                 keras.callbacks.EarlyStopping(monitor="loss", patience=patience, mode="min")
             ],
-            verbose=0
+            verbose=VERBOSITY
         )
 
         # compute anomal threshold
-        x_train_pred = self.model.predict(x_train_frames,verbose=0)
+        x_train_pred = self.model.predict(x_train_frames,verbose=VERBOSITY)
         train_reconstruction_loss = np.mean(np.abs(x_train_pred - x_train_frames), axis=1)
         self.threshold = np.quantile(train_reconstruction_loss,self.PERCENTILE)+1e-7 #1e-7 increase the airthmetic robustness
         self.max=max(np.max(train_reconstruction_loss),self.threshold*2) # I propose to handle it like this
@@ -225,7 +225,7 @@ class AE:
         assert(self.model is not None)
         assert(self.threshold is not None)
         x_frames3D = self._from_2Darray_to_3D_array(x_frames)
-        x_frames_pred3D = self.model.predict(x_frames3D,verbose=0)
+        x_frames_pred3D = self.model.predict(x_frames3D,verbose=VERBOSITY)
         x_frames_pred=self._from_3Darray_to_2Darray(x_frames_pred3D)
 
         reconstruction_loss = np.mean(np.abs(x_frames_pred - x_frames), axis=1)
@@ -237,7 +237,7 @@ class AE:
         assert(self.model is not None)
         assert(self.threshold is not None)
         fe=keras.Model(self.input_tensor, self.features_tensor)
-        features=fe.predict(x_frames,verbose=0)
+        features=fe.predict(x_frames,verbose=VERBOSITY)
 
         if len(features.shape)==3: #the nominal case
             newshape=(features.shape[0],features.shape[1]*features.shape[2])

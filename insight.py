@@ -9,7 +9,7 @@ def confusion_matrix_and_F1(y_pred,y_true):
     # Some timeseries does not contains abnormaly. We avoid division per zero by yielding accuracy instead of f1.
     # The returned score is always named "F1 score", for simplicity reasons.
     both_values = 0 in y_true and 1 in y_true
-    accuracy = round(np.mean(y_pred == y_true),4)
+    accuracy = np.round(np.mean(y_pred == y_true),4)
     if both_values:
         cm=confusion_matrix(y_true, y_pred)
         vals = cm.ravel()

@@ -187,7 +187,7 @@ def stump(train_dataset, test_dataset,hyperparameters={"w":128,"quantile":0.9}):
 
     testing_distances=distances[-1*len(test_dataset["x"]):]
 
-    from offline_strategies.autoencoder import _from_loss_to_proba
+    from anomaly_detectors.autoencoder import _from_loss_to_proba
     min=np.min(training_distances)
     max=np.max(training_distances)
     thresh=np.quantile(training_distances,hyperparameters["quantile"])

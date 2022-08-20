@@ -9,11 +9,14 @@ def sklearn_post_process(model,train_dataset,test_dataset):
     return test_rings
 
 
+def compute_hyperparameters(wanted_hp,default_hp):
+    hyperparameters={}
+    for k,v in default_hp.items():
+        hyperparameters[k]=wanted_hp.get(k,v)
+    return hyperparameters
 
-
-def isolation_forest(train_dataset, test_dataset,hyperparameters={}):
-    default_hyperparameters={"n_estimators":128,"bootstrap":False,"contamination":0.01}
-    hyperparameters.update(default_hyperparameters)
+def isolation_forest(train_dataset, test_dataset,wanted_hyperparameters={}):
+    hyperparameters=compute_hyperparameters(wanted_hyperparameters,{"n_estimators":128,"bootstrap":False,"contamination":0.01})
     if hyperparameters["bootstrap"]:
         model=IsolationForest(**hyperparameters,max_features=0.5)
     else:
@@ -23,21 +26,19 @@ def isolation_forest(train_dataset, test_dataset,hyperparameters={}):
 
 
 def oneclass_svm(train_dataset, test_dataset, wanted_hyperparameters={}):
-    hyperparameters = {"kernel": "linear"}
-    hyperparameters.update(wanted_hyperparameters)
+    hyperparameters=compute_hyperparameters(wanted_hyperparameters,{"kernel": "linear"})
     model=OneClassSVM(kernel=hyperparameters["kernel"])
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
 def elliptic_envelope(train_dataset, test_dataset,wanted_hyperparameters={}):
-    hyperparameters = {"contamination": 0.01,"assume_centered":True}
-    hyperparameters.update(wanted_hyperparameters)
+    hyperparameters=compute_hyperparameters(wanted_hyperparameters,{"contamination": 0.01,"assume_centered":True})
     model=EllipticEnvelope(**hyperparameters)
     model.fit(train_dataset["x"])
     return sklearn_post_process(model,train_dataset["x"],test_dataset["x"])
 
 def _AE_reconstruction(deeplearning_techno, train_dataset, test_dataset, wanted_hyperparameters={}):
-    from offline_strategies.autoencoder import AE
+    from anomaly_detectors.autoencoder import AE
     model = AE(deeplearning_techno, wanted_hyperparameters)
     model.fit(train_dataset["x"])
     x_test_pred = model.predict(test_dataset["x"])
