@@ -15,7 +15,8 @@ def convert_to_callables(AD_strategy):
         if isinstance(a, Callable):
             out.append(a)
         elif isinstance(a, str):
-            out.append(detector_strat_map[a])
+            f,_=detector_strat_map[a]
+            out.append(f)
         else:
             raise ValueError("Not expectected type")
     return out
