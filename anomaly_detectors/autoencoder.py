@@ -22,7 +22,12 @@ def default_dense_hyperparameters():
 
 def default_conv_hyperparameters():
     return {"K": 7, "K_reduc":0,
-            "init_filters": 32, "dropout_rate":0.2, "lr":0.001, "nb_layers":4,
+            "init_filters": 128, "dropout_rate":0.2, "lr":0.001, "nb_layers":4,
+            "batch_size":128,"l2_reg":0.001,"percentile":0.995,"epochs":1000}
+
+def default_conv2D_hyperparameters():
+    return {"K": 3, "K_reduc":0,
+            "init_filters": 128, "dropout_rate":0.2, "lr":0.001, "nb_layers":4,
             "batch_size":128,"l2_reg":0.001,"percentile":0.995,"epochs":1000}
 
 def _from_standardized_loss_to_proba(rescaled_reconstruction_loss, rescaled_thresh):
@@ -46,8 +51,14 @@ def _from_standardized_loss_to_proba(rescaled_reconstruction_loss, rescaled_thre
     return reconstruction_proba
 
 def _from_loss_to_proba(raw_reconstruction_loss,raw_threshold, min_train, max_train):
+    try:
+        # check
+        assert (max_train >= raw_threshold >= min_train)
+    except AssertionError as e:
+        print(f"WARNING in _from_loss_to_proba: {e} "
+              f"max({max_train}) >= thresh({raw_threshold}) >= min({min_train})")
     rescaled_thresh = (raw_threshold - min_train) / (max_train - min_train)
-    rescaled_reconstruction_loss = ((raw_reconstruction_loss - min_train) / (max_train - min_train))
+    rescaled_reconstruction_loss = (raw_reconstruction_loss - min_train) / (max_train - min_train)
     rescaled_reconstruction_loss = np.clip(rescaled_reconstruction_loss, 0, 1)
     probabilities = np.zeros((len(rescaled_reconstruction_loss),))
     for i, l in enumerate(rescaled_reconstruction_loss):
@@ -137,6 +148,38 @@ def conv_AE_keras(x, X_train, hyperparameters):
     x = layers.Conv1DTranspose(filters=1, kernel_size=k, padding="same", kernel_regularizer=reg)(x)
     return x,features_tensor
 
+def conv2D_AE_keras(x, X_train, hyperparameters):
+    NB_LAYERS=hyperparameters["nb_layers"]
+    f=hyperparameters["init_filters"]
+    k=hyperparameters["K"]
+    DROPOUT_RATE=hyperparameters["dropout_rate"]
+    K_reduc=hyperparameters["K_reduc"] #substractive
+    reg=regularizers.L2(hyperparameters["l2_reg"])
+
+    a="relu"
+    for b in range(NB_LAYERS - 1):
+        x = layers.Conv2D(
+            filters=f, kernel_size=k, padding="same", strides=2, activation=a, kernel_regularizer=reg
+        )(x)
+        x = layers.Dropout(rate=DROPOUT_RATE)(x)
+        f /= 2
+        k -= K_reduc
+    x = layers.Conv2D(filters=f, kernel_size=k, padding="same", strides=2, activation=a, kernel_regularizer=reg)(x)
+
+    features_tensor = keras.layers.Flatten()(x)
+
+    for b in range(NB_LAYERS - 1):
+        x = layers.Conv2DTranspose(
+            filters=f, kernel_size=k, padding="same", strides=2, activation=a, kernel_regularizer=reg
+        )(x)
+        x = layers.Dropout(rate=DROPOUT_RATE)(x)
+        f *= 2
+        k += K_reduc
+    x = layers.Conv2DTranspose(
+        filters=f, kernel_size=k, padding="same", strides=2, activation=a, kernel_regularizer=reg
+    )(x)
+    x = layers.Conv2DTranspose(filters=1, kernel_size=k,strides=1, padding="same", kernel_regularizer=reg)(x)
+    return x,features_tensor
 
 class AE:
     def __init__(self, deeplearning_techno, user_defined_hyperparameters):
@@ -149,6 +192,8 @@ class AE:
             self.hp=default_dense_hyperparameters()
         elif self.deeplearning_techno=="CONV_AE":
             self.hp=default_conv_hyperparameters()
+        elif self.deeplearning_techno=="2DCONVAE":
+            self.hp=default_conv2D_hyperparameters()
         else:
             raise ValueError(f"Error in AE class, deeplearning_techno not expected in the constructor: {self.deeplearning_techno}")
         self.hp.update(user_defined_hyperparameters)
@@ -167,16 +212,25 @@ class AE:
         self.model=None
         self.threshold=None
 
-    def _from_2Darray_to_3D_array(self, x):
+    def _from_2Darray_to_3D_array(self, x): # For vectors
         return np.reshape(x,(x.shape[0], x.shape[1], 1))
+
+    def _from_3Darray_to_4D_array(self, x): # For images
+        return np.reshape(x,(x.shape[0], x.shape[1], x.shape[2], 1))
     def _from_3Darray_to_2Darray(self, x):
         return np.reshape(x,(x.shape[0],x.shape[1]))
 
     def fit(self,x_train_frames):
-        x_train_frames=self._from_2Darray_to_3D_array(x_train_frames)
+        # Manage the dimensionality of the input
+        is_image="2D" in self.deeplearning_techno
+        if not is_image:
+            x_train_frames=self._from_2Darray_to_3D_array(x_train_frames)
+            x = layers.Input(shape=(x_train_frames.shape[1], x_train_frames.shape[2]))
+        else:#2D
+            x_train_frames=self._from_3Darray_to_4D_array(x_train_frames)
+            x = layers.Input(shape=(x_train_frames.shape[1], x_train_frames.shape[2], x_train_frames.shape[3]))
 
-        # Designing of the model according self.deeplearning_techno and hyperparameters
-        x = layers.Input(shape=(x_train_frames.shape[1], x_train_frames.shape[2]))
+        # Build the hyperparameters and the DAG
         self.input_tensor = x
         if self.deeplearning_techno=="LSTM_AE": #hyperparameters_to_use is the combination of exhaustive default hyperparameters and some updated by the user
             hyperparameters_to_use=default_LSTM_hyperparameters()
@@ -190,9 +244,15 @@ class AE:
             hyperparameters_to_use=default_conv_hyperparameters()
             hyperparameters_to_use.update(self.hp)
             x,self.features_tensor=conv_AE_keras(x,x_train_frames, hyperparameters_to_use)
+        elif self.deeplearning_techno=="2DCONVAE":
+            hyperparameters_to_use=default_conv2D_hyperparameters()
+            hyperparameters_to_use.update(self.hp)
+            x,self.features_tensor=conv2D_AE_keras(x,x_train_frames, hyperparameters_to_use)
         else:
             raise ValueError(f"Error in AE class, deeplearning_technology not understood {self.deeplearning_techno}")
         self.output_tensor = x
+
+        # WARNINING self.output_tensor shape and x_train_frames shape should match
 
         # Building of the model in memory
         patience=int(self.NB_EPOCH*self.PATIENCE_RATE)
@@ -211,7 +271,7 @@ class AE:
             verbose=VERBOSITY
         )
 
-        # compute anomal threshold
+        # compute anomal threshold if required later
         x_train_pred = self.model.predict(x_train_frames,verbose=VERBOSITY)
         train_reconstruction_loss = np.mean(np.abs(x_train_pred - x_train_frames), axis=1)
         self.threshold = np.quantile(train_reconstruction_loss,self.PERCENTILE)+1e-7 #1e-7 increase the airthmetic robustness

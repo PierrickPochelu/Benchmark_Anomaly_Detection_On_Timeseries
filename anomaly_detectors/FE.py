@@ -108,12 +108,14 @@ def _AE_FE(deeplearning_techno, train_dataset,test_dataset,frame_size,hyperparam
     test_dataset["x"]=x_frames_test
     return train_dataset,test_dataset
 
-def conv_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={"nb_layers":2}):
+def conv_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
     return _AE_FE("CONV_AE", train_dataset,test_dataset,frame_size,hyperparameters)
 def LSTM_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
     return _AE_FE("LSTM_AE", train_dataset,test_dataset,frame_size,hyperparameters)
 def dense_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
     return _AE_FE("DENSE_AE", train_dataset,test_dataset,frame_size,hyperparameters)
+def conv2D_AE_FE(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    return _AE_FE("2DCONVAE", train_dataset,test_dataset,frame_size,hyperparameters)
 
 def DATAAUG (train_dataset,test_dataset,frame_size,wanted_hyperparameters={}):
     hyperparameters=compute_hyperparameters(wanted_hyperparameters,{"multiplier":10})
@@ -167,12 +169,215 @@ def LOGMELSPECTR(train_dataset,test_dataset,frame_size,wanted_hyperparameters={}
 
     return train_dataset, test_dataset
 
-def SPECTR(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "n_mels": 64, "hop_length": 512}):
-    raise NotImplementedError("no spectrogram")
-    train_dataset["x"] = _from_signal_to_logmelspectrogram(train_dataset["x"],hyperparameters)
-    test_dataset["x"] = _from_signal_to_logmelspectrogram(test_dataset["x"],hyperparameters)
-    train_dataset, test_dataset=FRAMED(train_dataset,test_dataset,frame_size,hyperparameters)
+import scipy
+
+
+def descriptiv(x):
+    _get=lambda v: v[0] if isinstance(v,list) else v
+
+    mean=np.mean(x)
+    std=np.std(x)
+    q99=np.quantile(x,0.99)
+    q90=np.quantile(x,0.9)
+    q75=np.quantile(x,0.75)
+    q50=np.quantile(x,0.5)
+    q25=np.quantile(x,0.25)
+    q10=np.quantile(x,0.1)
+    q01=np.quantile(x,0.01)
+
+    skew = scipy.stats.skew(x)
+    skew=_get(skew)
+
+    kurt = scipy.stats.kurtosis(x) #distance between gaussian and real distribution tai
+    kurt=_get(kurt)
+
+    mode = scipy.stats.mode(x)[0][0]
+    mode=_get(mode)
+
+    iqr = scipy.stats.iqr(x)#distance between 25th and 75th
+    iqr=_get(iqr)
+    return np.array([mean,std,skew,kurt,mode,iqr,
+                     q99,q90,q75,q50,q25,q10,q01])
+def spec(x):
+    import librosa
+    spec_centroid = librosa.feature.spectral_centroid(x)[0]
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(x)[0]
+    spectral_contrast = librosa.feature.spectral_contrast(x)[0]
+    spectral_flatness = librosa.feature.spectral_flatness(x)[0]
+    spectral_rolloff = librosa.feature.spectral_rolloff(x)[0]
+    return np.concatenate([spec_centroid,spectral_bandwidth,spectral_contrast,spectral_flatness,spectral_rolloff])
+
+def fesound(x):
+    import librosa
+    sr=16000
+    #hop_length = int(len(x)*1.1)
+
+    #https://maelfabien.github.io/machinelearning/Speech9/#2-energy
+    #https://medium.com/@alexandro.ramr777/audio-files-to-dataset-by-feature-extraction-with-librosa-d87adafe5b64
+
+
+    # cent = librosa.feature.spectral_centroid(y=x, sr=sr)
+    # cent=cent[0,0]
+    # zero_crossing=librosa.feature.zero_crossing_rate(x + 0.0001)
+    # zero_crossing=zero_crossing[0,0]
+    # chromagram=librosa.feature.chroma_stft(y=x, sr=sr, hop_length=hop_length)
+    # chromagram=np.mean(chromagram)
+    mel_spectrogram = librosa.feature.melspectrogram(y=x, sr=sr,
+                                                     n_fft=1024,
+                                                     hop_length=512,
+                                                     n_mels=64,
+                                                     power=2.)
+    S_dB = librosa.power_to_db(mel_spectrogram, ref=np.max).flatten()
+
+    mfccs = librosa.feature.mfcc(x, sr=sr)#mel
+    mfccs=mfccs.flatten()
+
+    #poly_features = librosa.feature.poly_features(x)#generate boring warnings
+    #descpoly = descriptiv(poly_features)
+    #mel=librosa.feature.
+
+    # spectr=spec(x)
+    vector=[mfccs,S_dB]
+    #vector=[desc,spectr,cent,zero_crossing,rmse]
+    #vector=[desc, mfccs, cent, zero_crossing, rmse, tempogram, spectr]
+    #vector=[mfccs]
+
+    for i,v in enumerate(vector):
+        v=np.array(v) # force conversion
+        if len(v.shape)>2:
+            raise ValueError("more than 1D it makes the concatenation impossible")
+        elif len(v.shape)==1:
+            pass #ok
+        elif len(v.shape)==0:
+            vector[i]=v.reshape((1,))
+    vec = np.concatenate(vector)
+    return vec
+
+
+def FESOUND(train_dataset,test_dataset,frame_size,hyperparameters={"sampling_rate": 16000, "hop_length": 512}):
+    fex=[]
+    for xi in train_dataset["x"]:
+        fex.append( fesound(xi) )
+    train_dataset["x"]=np.array(fex)
+
+    fex=[]
+    for xi in test_dataset["x"]:
+        fex.append( fesound(xi) )
+    test_dataset["x"]=np.array(fex)
+
+    mu=np.mean(train_dataset["x"],axis=0)
+    std=np.std(train_dataset["x"],axis=0)
+    train_dataset["x"]=(train_dataset["x"]-mu)/(std+1e-7)
+    test_dataset["x"]=(test_dataset["x"]-mu)/(std+1e-7)
     return train_dataset, test_dataset
 
 
 
+def SPECTRO(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    sr=16000
+    # https://dcase.community/challenge2021/task-unsupervised-detection-of-anomalous-sounds-results
+    # https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Morita_59_t2.pdf
+    # https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Lopez_6_t2.pdf
+    # https://dcase.community/documents/challenge2021/technical_reports/DCASE2021_Wilkinghoff_31_t2.pdf
+
+
+    default_hp={"sr": 16000, "n_fft":1024, "hop_length":512, "n_mels":128}
+    hyperparameters=compute_hyperparameters(hyperparameters,default_hp=default_hp)
+
+    if frame_size<=hyperparameters["hop_length"]:
+        raise ValueError("frame_size should be superior of hop_length")
+    import librosa
+
+    def one_frame(signal,hp):
+        mel_spectrogram = librosa.feature.melspectrogram(y=signal, sr=hp["sr"],
+                                                         n_fft=hp["n_fft"],
+                                                         hop_length=hp["hop_length"],
+                                                         n_mels=hp["n_mels"],
+                                                         power=2.)
+        S_dB = librosa.power_to_db(mel_spectrogram, ref=np.max)
+
+
+
+
+
+        return S_dB.flatten()
+
+    # convert frames into images
+    new_db=[]
+    for i in range(len(train_dataset["x"])):
+        fe=one_frame(train_dataset["x"][i],hyperparameters)
+        new_db.append(fe)
+    train_dataset["x"]=np.array(new_db)
+
+    new_db=[]
+    for i in range(len(test_dataset["x"])):
+        fe=one_frame(test_dataset["x"][i],hyperparameters)
+        new_db.append(fe)
+    test_dataset["x"]=np.array(new_db)
+
+    """
+    import matplotlib.pyplot as plt
+    import librosa.display  # mandatory to use librosa.display
+    fig, ax = plt.subplots()
+    img = librosa.display.specshow(S_dB, x_axis='time', y_axis='mel', sr=sampling_rate, fmax=8000, ax=ax)
+    fig.colorbar(img, ax=ax, format='%+2.0f dB')
+    ax.set(title='Mel-frequency spectrogram')
+    label_name = "normal" if label == 0 else "anomaly"
+    img_name = "./jpeg/" + str(db_id) + "/" + str(frame_id) + "_" + str(label_name) + ".jpg"
+    plt.savefig(img_name)
+    """
+
+    M=np.max(train_dataset["x"])
+    m=np.min(train_dataset["x"])
+    train_dataset["x"]=(train_dataset["x"]-m)/(M-m)
+    test_dataset["x"]=(test_dataset["x"]-m)/(M-m)
+
+    return train_dataset, test_dataset
+
+def MFCCS(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    import librosa
+    fex=[]
+    for xi in train_dataset["x"]:
+        mfccs = librosa.feature.mfcc(xi, sr=16000)  # mel
+        mfccs = mfccs.flatten()
+        fex.append( mfccs )
+    train_dataset["x"]=np.array(fex)
+
+    fex=[]
+    for xi in test_dataset["x"]:
+        mfccs = librosa.feature.mfcc(xi, sr=16000)  # mel
+        mfccs = mfccs.flatten()
+        fex.append( mfccs )
+    test_dataset["x"]=np.array(fex)
+
+    mu=np.mean(train_dataset["x"],axis=0)
+    std=np.std(train_dataset["x"],axis=0)
+    train_dataset["x"]=(train_dataset["x"]-mu)/(std+1e-7)
+    test_dataset["x"]=(test_dataset["x"]-mu)/(std+1e-7)
+
+    return train_dataset,test_dataset
+
+def MFCCS2D(train_dataset,test_dataset,frame_size,hyperparameters={}):
+    import librosa
+    hop_length=512
+    n_mfcc=32
+    fex=[]
+    for xi in train_dataset["x"]:
+        mfccs = librosa.feature.mfcc(xi, sr=16000,n_mfcc=n_mfcc,hop_length=hop_length)  # mel
+        mfccs=mfccs[:,0:len(xi)//hop_length]
+        fex.append( mfccs )
+    train_dataset["x"]=np.array(fex)
+
+    fex=[]
+    for xi in test_dataset["x"]:
+        mfccs = librosa.feature.mfcc(xi, sr=16000,n_mfcc=n_mfcc,hop_length=hop_length)  # mel
+        mfccs=mfccs[:,0:len(xi)//hop_length]
+        fex.append( mfccs )
+    test_dataset["x"]=np.array(fex)
+
+    mu=np.mean(train_dataset["x"])
+    std=np.mean(np.std(train_dataset["x"],axis=(1,2)))
+    train_dataset["x"]=(train_dataset["x"]-mu)/(std+1e-7)
+    test_dataset["x"]=(test_dataset["x"]-mu)/(std+1e-7)
+
+    return train_dataset,test_dataset

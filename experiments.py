@@ -70,6 +70,7 @@ def LAUNCH_EXPERIMENTS_AT_SCALE(data_prep_info:dict, detector_name:str, AD_hyper
         stat,details=exp.evaluate(preds,test_dataset)
 
 
+
         print(detector_name, " stat:", stat)
         stats.append(stat)
         if stat is not None and MOSAIC:

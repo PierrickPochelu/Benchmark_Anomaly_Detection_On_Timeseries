@@ -254,7 +254,7 @@ def file_list_generator(DCASE_path,
             files : list [ str ]
                 audio file list
     """
-
+    assert(split_name in set(["target_test","train","source_test"]))
     if split_name!="train":
         path=f"{DCASE_path}/{split_name}/*{prefix_normal}*.{ext}"
         query = os.path.abspath(path)
@@ -275,7 +275,7 @@ def file_list_generator(DCASE_path,
         for nl,al in zip(normal_labels,anomaly_labels):
             labels.append(nl)
             labels.append(al)
-
+        print("ok")
         #files = np.concatenate((normal_files, anomaly_files), axis=0)
         #labels = np.concatenate((normal_labels, anomaly_labels), axis=0)
         #idx=np.array(range(len(files)))

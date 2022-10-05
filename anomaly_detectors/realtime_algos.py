@@ -170,8 +170,10 @@ def CADKNN(train_dataset, test_dataset, hyperparameters={}):
     return predict_with_strat(algo, test_dataset)
 
 
-def stump(train_dataset, test_dataset,hyperparameters={"w":128,"quantile":0.9}):
-    import stumpy
+def stump(train_dataset, test_dataset,hyperparameters={}):
+    default_hyperparameters={"w":128,"quantile":0.9}
+    hyperparameters.update(default_hyperparameters)
+
     from stumpy import stumpi
     mp=stumpi(train_dataset["x"],hyperparameters["w"],egress=False)
     for x in test_dataset["x"]:

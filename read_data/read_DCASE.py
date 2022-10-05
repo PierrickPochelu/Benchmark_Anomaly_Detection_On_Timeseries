@@ -22,13 +22,13 @@ def from_one_file_to_frames(fname, nb_frames, data_prep_info):
     # compute frame positions
     frame_size=data_prep_info["frame_size"]
     nb_samples=len(raw_data)
-    nb_offsets=frame_size+nb_frames-1
-    assert((nb_offsets)<=nb_samples)
-    offsets=np.random.choice(range(nb_offsets),nb_frames)
+    max_starting_id=nb_samples-frame_size # (included)
+    assert((max_starting_id)<=nb_samples)
+    start_ids=np.random.randint(0,max_starting_id+1,(nb_frames,))
 
     # compute frames
     frames=[]
-    for start_id in offsets:
+    for start_id in start_ids:
         raw_frame=raw_data[start_id:start_id+frame_size]
         frames.append(raw_frame)
     return frames
@@ -67,16 +67,21 @@ def read_and_prepare_one_DCASE_dataset(dataset_name, dataset_path, dataset_prep_
     train_dataset={"x":[], "y":[]}
     test_dataset={"x":[], "y":[]}
 
-
+    # TRAINING DB
     for idx,(fpath,flabel) in enumerate(zip(x_files_train,y_train)):
         file_frames_raw_data=from_one_file_to_frames(fpath,
                                                      nb_frames=nb_frames_per_file,
                                                      data_prep_info=dataset_prep_info)
+        if not isinstance(flabel,float):
+            print("error")
+            flabel=flabel[0]#temporary patch
         file_frames_labels = np.ones((len(file_frames_raw_data),)) * flabel
         train_dataset["x"].append(file_frames_raw_data)
         train_dataset["y"].append(file_frames_labels)#for each frame we have a label
         if idx==max_files-1:
             break
+
+    # TESTING DB
     for idx,(fpath,flabel) in enumerate(zip(x_files_test,y_test)):
         file_frames_raw_data=from_one_file_to_frames(fpath,
                                                      nb_frames=nb_frames_per_file,
@@ -135,7 +140,19 @@ def DCASE_datasets_generator(path:str, dataset_prep_info:dict):
         hp={"frame_size":128,"nb_frames_per_file":2,"max_files":100}
         hp.update(dataset_prep_info)
 
-        fe = feature_extractor_strat_map[hp["FE_name"]]
+        # Exctract features
+        fe_name=hp["FE_name"]# FE CAN BE A CHAIN or 1 existing FE
+        feature_extractors=[]
+        if fe_name in feature_extractor_strat_map:
+            # one single FE
+            feature_extractors.append(feature_extractor_strat_map[fe_name])
+        else:
+            fe_names=fe_name.split("_")
+            for fe_name in fe_names:
+                fe = feature_extractor_strat_map[fe_name]
+                feature_extractors.append(fe)
+
+
         frame_size=hp["frame_size"]
         nb_frames_per_file=hp["nb_frames_per_file"]
         max_files=hp["max_files"]
@@ -148,7 +165,8 @@ def DCASE_datasets_generator(path:str, dataset_prep_info:dict):
                                                                           max_files=max_files) #read and standardize
             are_valid=check_dataset(train_dataset,test_dataset)
             if are_valid:
-                train_dataset,test_dataset=fe(train_dataset,test_dataset,frame_size,hp)
+                for fe in feature_extractors:
+                    train_dataset,test_dataset=fe(train_dataset, test_dataset, frame_size, hp)
                 yield train_dataset, test_dataset
             else:
                 pass #
